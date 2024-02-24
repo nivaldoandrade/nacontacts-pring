@@ -5,8 +5,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -25,12 +27,15 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<RestErrorResponse> validation(MethodArgumentNotValidException e) {
+    public ResponseEntity<RestErrorResponseWithFieldErrors> validation(MethodArgumentNotValidException e) {
         int statusCode = HttpStatus.BAD_REQUEST.value();
 
-        RestErrorResponse error = new RestErrorResponse(
+        List<FieldError> fieldErrors = e.getBindingResult().getFieldErrors().stream()
+                .map(ex -> new FieldError(ex.getField(), ex.getDefaultMessage())).toList();
+
+        RestErrorResponseWithFieldErrors error = new RestErrorResponseWithFieldErrors(
                 statusCode,
-                e.getBindingResult().getAllErrors().get(0).getDefaultMessage(),
+                fieldErrors,
                 LocalDateTime.now()
         );
 
@@ -49,4 +54,32 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(statusCode).body(error);
     }
-}
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<RestErrorResponse> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        int statusCode = HttpStatus.BAD_REQUEST.value();
+
+        String message = String.format("The parameter %s is invalid", e.getName());
+
+        RestErrorResponse error = new RestErrorResponse(
+                statusCode,
+                message,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(statusCode).body(error);
+    }
+
+    @ExceptionHandler(EmailAlreadyInUseException.class)
+    public ResponseEntity<RestErrorResponse> handleEmailAlreadyInUse(EmailAlreadyInUseException e) {
+        int statusCode = HttpStatus.BAD_REQUEST.value();
+
+        RestErrorResponse error = new RestErrorResponse(
+                statusCode,
+                e.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(statusCode).body(error);
+    }
+};
