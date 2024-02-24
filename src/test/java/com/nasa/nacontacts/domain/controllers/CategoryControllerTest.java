@@ -218,7 +218,7 @@ public class CategoryControllerTest {
                 .content(json))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value("Name is required"));
+                .andExpect(jsonPath("$.fieldErrors[0].message").value("Name is required"));
 
         verifyNoInteractions(categoryService);
     }
