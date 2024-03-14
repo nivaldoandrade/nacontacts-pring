@@ -7,8 +7,6 @@ import com.nasa.nacontacts.domain.dtos.request.UpdateCategoryRequest;
 import com.nasa.nacontacts.domain.exceptions.CategoryExistsException;
 import com.nasa.nacontacts.domain.exceptions.EntityNotFoundException;
 import com.nasa.nacontacts.domain.repositories.CategoryRepository;
-
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,7 +29,6 @@ public class CategoryServiceTest {
 
     @Mock
     CategoryRepository categoryRepository;
-
 
     @Test
     void shouldShowListCategories() {
@@ -98,11 +95,12 @@ public class CategoryServiceTest {
     @Test
     void shouldThrowErrorWhenCreatingCategoryExists() {
         String categoryName = "Facebook";
-        Category category = new Category(null, "Facebook");
-
+        Category category = new Category(null, categoryName);
+        Category categoryExists = mock(Category.class);
+        categoryExists.setName(categoryName);
         CreateCategoryRequest mockRequest = CreateCategoryRequest.fromCategory(category);
 
-        when(categoryRepository.findByName(categoryName)).thenThrow(new CategoryExistsException());
+        when(categoryRepository.findByName(categoryName)).thenReturn(Optional.of(categoryExists));
 
         CategoryExistsException e = assertThrows(
                 CategoryExistsException.class,
@@ -123,9 +121,9 @@ public class CategoryServiceTest {
         Category requestCategory = new Category(null, "Facebook+1");
         Category existingCategory = new Category(id,"Facebook");
 
-        existingCategory.setName(requestCategory.getName());
-
         when(categoryRepository.findById(id)).thenReturn(Optional.of(existingCategory));
+        when(categoryRepository.findByName(any(String.class)))
+                .thenReturn(Optional.empty());
 
         UpdateCategoryRequest updateCategoryRequest = UpdateCategoryRequest.fromCategory(requestCategory);
 
@@ -158,15 +156,18 @@ public class CategoryServiceTest {
     @Test
     void shouldThrowErrorWhenUpdatingCategoryWithNameAlreadyInUse() {
         UUID id = UUID.randomUUID();
-        Category existsCategory = new Category(id, "Facebook");
-        String mockNameRequest = "Twitter";
+        Category category = new Category(id, "Facebook");
 
+        String categoryNameExists = "Twitter";
+        Category mockedCategory = mock(Category.class);
+        mockedCategory.setName(categoryNameExists);
 
-        when(categoryRepository.findById(id)).thenReturn(Optional.of(existsCategory));
-        when(categoryRepository.findByName(mockNameRequest)).thenThrow(new CategoryExistsException());
+        when(categoryRepository.findById(id)).thenReturn(Optional.of(category));
+        when(categoryRepository.findByName(categoryNameExists))
+                .thenReturn(Optional.of(mockedCategory));
 
         UpdateCategoryRequest mockRequest = UpdateCategoryRequest
-                .fromCategory(new Category(null, mockNameRequest));
+                .fromCategory(new Category(null, categoryNameExists));
 
         CategoryExistsException e = assertThrows(
                 CategoryExistsException.class,
@@ -177,7 +178,7 @@ public class CategoryServiceTest {
 
         assertEquals(e.getMessage(), errorMessage);
         verify(categoryRepository).findById(id);
-        verify(categoryRepository).findByName(mockNameRequest);
+        verify(categoryRepository).findByName(categoryNameExists);
         verifyNoMoreInteractions(categoryRepository);
     }
 

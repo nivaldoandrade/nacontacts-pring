@@ -10,14 +10,19 @@ import com.nasa.nacontacts.domain.dtos.request.UpdateContactRequest;
 import com.nasa.nacontacts.domain.exceptions.EmailAlreadyInUseException;
 import com.nasa.nacontacts.domain.exceptions.EntityNotFoundException;
 import com.nasa.nacontacts.domain.exceptions.GlobalExceptionHandler;
+import com.nasa.nacontacts.domain.exceptions.StorageNotFoundException;
 import com.nasa.nacontacts.domain.services.ContactService;
+import com.nasa.nacontacts.domain.services.FileUploadService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -40,6 +45,9 @@ public class ContactControllerTest {
     @Mock
     ContactService contactService;
 
+    @Mock
+    FileUploadService fileUploadService;
+
     private MockMvc mockMvc;
 
     private String json;
@@ -50,9 +58,11 @@ public class ContactControllerTest {
 
     private UUID id;
 
-    private String emailAlreadInUseMessage;
+    private static final String emailAlreadyInUseMessage = "Email is already in use";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private static final MockMultipartFile mockedFile = new MockMultipartFile("photo", "contact1.jpg", MediaType.IMAGE_JPEG_VALUE, "test data".getBytes());;
 
     @BeforeEach
     void setUp() throws JsonMappingException {
@@ -70,10 +80,50 @@ public class ContactControllerTest {
                "contact",
                "contact@email.com",
                "123456789",
+               null,
                category
        );
 
-        emailAlreadInUseMessage = "Email is already in use";
+    }
+
+    @Test
+    void shouldGetJPEGImageContact() throws Exception{
+        String imageName = "test.jpg";
+        byte[] mockedBytes = imageName.getBytes();
+        ByteArrayResource mockedByteArrayResource = new ByteArrayResource(mockedBytes);
+
+        when(fileUploadService.getImage(imageName)).thenReturn(mockedByteArrayResource);
+
+        mockMvc.perform(get(url + "/image/" + imageName))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_JPEG_VALUE))
+                .andExpect(content().bytes(mockedBytes));
+    }
+    @Test
+    void shouldGetPNGImageContact() throws Exception{
+        String imageName = "test.png";
+        byte[] mockedBytes = imageName.getBytes();
+        ByteArrayResource mockedByteArrayResource = new ByteArrayResource(mockedBytes);
+
+        when(fileUploadService.getImage(imageName)).thenReturn(mockedByteArrayResource);
+
+        mockMvc.perform(get(url + "/image/" + imageName))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG_VALUE))
+                .andExpect(content().bytes(mockedBytes));
+    }
+
+    @Test
+    void shouldThrowNotFoundErrorWhenGetImage() throws Exception {
+        String imageName = "test.png";
+
+        String notFoundMessage = "The file is not found.";
+
+        when(fileUploadService.getImage(imageName)).thenThrow(new StorageNotFoundException(notFoundMessage));
+
+        mockMvc.perform(get(url + "/image/" + imageName))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(notFoundMessage));
     }
 
     @Test
@@ -140,22 +190,25 @@ public class ContactControllerTest {
     void shouldCreateNewContact() throws Exception {
         CreateContactRequest contactRequest = CreateContactRequest.fromContact(contact);
 
-        when(contactService.create(contactRequest)).thenReturn(contact);
+        contact.setPhoto(UUID.randomUUID() + "_" + mockedFile.getOriginalFilename());
+        when(contactService.create(contactRequest, mockedFile)).thenReturn(contact);
 
         json = objectMapper.writeValueAsString(contactRequest);
 
         String expectedJson = objectMapper.writeValueAsString(ContactDTO.from(contact));
         String expectedLocation = "http://localhost/contacts/" + id;
 
-        mockMvc.perform(post(url)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(url)
+                .file(mockedFile)
+                .param("name", contactRequest.name())
+                .param("email", contactRequest.email())
+                .param("phone", contactRequest.phone())
+                .param("category_id", String.valueOf(contactRequest.category_id())))
                 .andExpect(status().isCreated())
                 .andExpect(content().json(expectedJson))
                 .andExpect(header().string("Location", expectedLocation));
 
-        verify(contactService).create(contactRequest);
+        verify(contactService).create(contactRequest, mockedFile);
         verifyNoMoreInteractions(contactService);
     }
 
@@ -163,19 +216,18 @@ public class ContactControllerTest {
     void shouldThrowErrorWhenCreatingContactWithDuplicateEmail() throws  Exception {
         CreateContactRequest contactRequest = CreateContactRequest.fromContact(contact);
 
-        when(contactService.create(contactRequest)).thenThrow(new EmailAlreadyInUseException());
+        when(contactService.create(contactRequest, mockedFile)).thenThrow(new EmailAlreadyInUseException());
 
-        json = objectMapper.writeValueAsString(contactRequest);
-
-        mockMvc.perform(post(url)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(url)
+                .file(mockedFile)
+                .param("name", contactRequest.name())
+                .param("email", contactRequest.email())
+                .param("phone", contactRequest.phone())
+                .param("category_id", String.valueOf(contactRequest.category_id())))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(emailAlreadInUseMessage));
+                .andExpect(jsonPath("$.message").value(emailAlreadyInUseMessage));
 
-
-        verify(contactService).create(contactRequest);
+        verify(contactService).create(contactRequest, mockedFile);
         verifyNoMoreInteractions(contactService);
     }
 
@@ -183,35 +235,26 @@ public class ContactControllerTest {
     void shouldThrowErrorWhenCreatingContactAndCategoryNonExists() throws Exception {
         CreateContactRequest contactRequest = CreateContactRequest.fromContact(contact);
 
-        when(contactService.create(contactRequest)).thenThrow(
+        when(contactService.create(contactRequest, mockedFile)).thenThrow(
                 new EntityNotFoundException(contact.getCategory().getId(), Category.class)
         );
 
-        json = objectMapper.writeValueAsString(contactRequest);
-
-        mockMvc.perform(post(url)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(url)
+                .file(mockedFile)
+                .param("name", contactRequest.name())
+                .param("email", contactRequest.email())
+                .param("phone", contactRequest.phone())
+                .param("category_id", String.valueOf(contactRequest.category_id())))
                 .andExpect(status().isNotFound());
 
-        verify(contactService).create(contactRequest);
+        verify(contactService).create(contactRequest, mockedFile);
         verifyNoMoreInteractions(contactService);
     }
 
     @Test
     void shouldThrowErrorWhenCreatingContactWithInvalidData() throws Exception {
-        Contact contactInvalid = new Contact(null, "", "", "123456789", null);
-
-        CreateContactRequest contactRequest = CreateContactRequest.fromContactWithCategoryId(
-                contactInvalid, null);
-
-        json = objectMapper.writeValueAsString(contactRequest);
-
-        mockMvc.perform(post(url)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(url)
+                .file(mockedFile))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[*].field")
                         .value(hasItems("name", "email", "category_id")))
@@ -225,15 +268,16 @@ public class ContactControllerTest {
     void shouldUpdatedContact() throws Exception {
         UpdateContactRequest contactRequest = UpdateContactRequest.fromContact(contact);
 
-        json = objectMapper.writeValueAsString(contactRequest);
-
-        mockMvc.perform(put(url + "/" + id)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(HttpMethod.PUT,url + "/" + id)
+                .file(mockedFile)
+                .param("name", contactRequest.name())
+                .param("email", contactRequest.email())
+                .param("phone", contactRequest.phone())
+                .param("category_id", String.valueOf(contactRequest.category_id())))
                 .andExpect(status().isNoContent());
 
-        verify(contactService).update(id, contactRequest);
+
+        verify(contactService).update(id, contactRequest, mockedFile);
         verifyNoMoreInteractions(contactService);
     }
 
@@ -241,20 +285,21 @@ public class ContactControllerTest {
     void shouldThrowErrorWhenUpdatingContactNonExists() throws Exception {
         UpdateContactRequest contactRequest = UpdateContactRequest.fromContact(contact);
 
-        doThrow(new EntityNotFoundException(id, Contact.class)).when(contactService).update(id, contactRequest);
-
-        json = objectMapper.writeValueAsString(contactRequest);
+        doThrow(new EntityNotFoundException(id, Contact.class))
+                .when(contactService).update(id, contactRequest, mockedFile);
 
         String message = Contact.class.getSimpleName() + " with id = " + id + " not found";
 
-        mockMvc.perform(put(url + "/" + id)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(HttpMethod.PUT, url + "/" + id)
+                .file(mockedFile)
+                .param("name", contactRequest.name())
+                .param("email", contactRequest.email())
+                .param("phone", contactRequest.phone())
+                .param("category_id", String.valueOf(contactRequest.category_id())))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value(message));
+                .andExpect(jsonPath("$.message").value(message));;
 
-        verify(contactService).update(id, contactRequest);
+        verify(contactService).update(id, contactRequest, mockedFile);
         verifyNoMoreInteractions(contactService);
     }
 
@@ -262,18 +307,19 @@ public class ContactControllerTest {
     void shouldThrowErrorWhenUpdatingContactWithDuplicateEmail() throws Exception {
         UpdateContactRequest contactRequest = UpdateContactRequest.fromContact(contact);
 
-        doThrow(new EmailAlreadyInUseException()).when(contactService).update(id, contactRequest);
+        doThrow(new EmailAlreadyInUseException())
+                .when(contactService).update(id, contactRequest, mockedFile);
 
-        json = objectMapper.writeValueAsString(contactRequest);
-
-        mockMvc.perform(put(url + "/" + id)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(HttpMethod.PUT, url + "/" + id)
+                .file(mockedFile)
+                .param("name", contactRequest.name())
+                .param("email", contactRequest.email())
+                .param("phone", contactRequest.phone())
+                .param("category_id", String.valueOf(contactRequest.category_id())))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value(emailAlreadInUseMessage));
+                .andExpect(jsonPath("$.message").value(emailAlreadyInUseMessage));;
 
-        verify(contactService).update(id, contactRequest);
+        verify(contactService).update(id, contactRequest, mockedFile);
         verifyNoMoreInteractions(contactService);
     }
 
@@ -284,41 +330,32 @@ public class ContactControllerTest {
         UpdateContactRequest contactRequest = UpdateContactRequest.fromContact(contact);
 
         doThrow(new EntityNotFoundException(categoryId, Category.class))
-                .when(contactService).update(id, contactRequest);
-
-        json = objectMapper.writeValueAsString(contactRequest);
+                .when(contactService).update(id, contactRequest, mockedFile);
 
         String message = Category.class.getSimpleName() + " with id = " + categoryId + " not found";
 
-        mockMvc.perform(put(url + "/" + id)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(HttpMethod.PUT, url + "/" + id)
+                .file(mockedFile)
+                .param("name", contactRequest.name())
+                .param("email", contactRequest.email())
+                .param("phone", contactRequest.phone())
+                .param("category_id", String.valueOf(contactRequest.category_id())))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value(message));
+                .andExpect(jsonPath("$.message").value(message));;
 
-        verify(contactService).update(id, contactRequest);
+        verify(contactService).update(id, contactRequest,  mockedFile);
         verifyNoMoreInteractions(contactService);
     }
 
     @Test
     void shouldThrowErrorWhenUpdatingContactWithInvalidData() throws Exception {
-        Contact contactInvalid = new Contact(null, "", "", "123456789", null);
-
-        UpdateContactRequest contactRequest = UpdateContactRequest
-                .fromContactWithCategoryId(contactInvalid, null);
-
-        json = objectMapper.writeValueAsString(contactRequest);
-
-        mockMvc.perform(put(url + "/" + id)
-                .accept(MediaType.APPLICATION_JSON)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
+        mockMvc.perform(multipart(HttpMethod.PUT, url + "/" + id)
+                .file(mockedFile))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors[*].field")
                         .value(hasItems("name", "email", "category_id")))
                 .andExpect(jsonPath("$.fieldErrors[*].message")
-                        .value(hasItems("Name is required", "Email is required", "CategoryId is required")));
+                        .value(hasItems("Name is required", "Email is required", "CategoryId is required")));;
 
         verifyNoInteractions(contactService);
     }
