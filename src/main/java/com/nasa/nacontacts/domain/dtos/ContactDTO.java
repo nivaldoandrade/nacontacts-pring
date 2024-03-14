@@ -14,6 +14,8 @@ public record ContactDTO(
 
         String phone,
 
+        String photo,
+
         Category category
 ) {
 
@@ -22,6 +24,7 @@ public record ContactDTO(
                 ,contact.getName()
                 ,contact.getEmail()
                 ,contact.getPhone()
+                ,contact.getPhoto()
                 ,contact.getCategory()
         );
     }

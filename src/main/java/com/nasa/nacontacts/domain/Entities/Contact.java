@@ -26,6 +26,8 @@ public class Contact {
 
     private String phone;
 
+    private String photo;
+
     @ManyToOne(cascade = CascadeType.MERGE)
     @JoinColumn(name = "category_id")
     private Category category;

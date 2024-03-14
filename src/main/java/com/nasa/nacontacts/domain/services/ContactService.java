@@ -7,21 +7,29 @@ import com.nasa.nacontacts.domain.dtos.request.UpdateContactRequest;
 import com.nasa.nacontacts.domain.exceptions.EmailAlreadyInUseException;
 import com.nasa.nacontacts.domain.exceptions.EntityNotFoundException;
 import com.nasa.nacontacts.domain.repositories.ContactRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Transactional
 public class ContactService {
 
     private final ContactRepository contactRepository;
     private final CategoryService categoryService;
+    private final FileUploadService fileUploadService;
 
-    public ContactService(ContactRepository contactRepository, CategoryService categoryService) {
+    public ContactService(ContactRepository contactRepository,
+                          CategoryService categoryService,
+                          FileUploadService fileUploadService
+    ) {
         this.contactRepository = contactRepository;
         this.categoryService = categoryService;
+        this.fileUploadService = fileUploadService;
     }
 
     public List<Contact> findAll() {
@@ -37,7 +45,7 @@ public class ContactService {
         return contact;
     }
 
-    public Contact create(CreateContactRequest contact) {
+    public Contact create(CreateContactRequest contact, MultipartFile photo) {
         Category categoryExists = categoryService.findById(contact.category_id());
 
         Optional<Contact> contactByEmailExists = contactRepository.findByEmail(contact.email());
@@ -46,20 +54,29 @@ public class ContactService {
             throw new EmailAlreadyInUseException();
         }
 
+        String photoName = photo != null
+                ? fileUploadService.generateFileName(photo.getOriginalFilename())
+                : null;
+
         Contact newContact = new Contact(
-                null
-                , contact.name()
-                ,contact.email()
-                ,contact.phone()
-                ,categoryExists
+                null,
+                contact.name(),
+                contact.email(),
+                contact.phone(),
+                photoName,
+                categoryExists
         );
 
-        newContact = contactRepository.save(newContact);
+       newContact = contactRepository.save(newContact);
 
-        return newContact;
+       if(photoName != null) {
+           fileUploadService.saveFile(photo, photoName);
+       }
+
+       return newContact;
     }
 
-    public void update(UUID id, UpdateContactRequest request) {
+    public void update(UUID id, UpdateContactRequest request, MultipartFile photo) {
         Contact contactExists = this.findById(id);
 
         Optional<Contact> contactByEmailExists = contactRepository.findByEmail(request.email());
@@ -72,14 +89,24 @@ public class ContactService {
 
         Category category = categoryService.findById(request.category_id());
 
+        String photoName = photo != null
+                ? fileUploadService.generateFileName(photo.getOriginalFilename())
+                : contactExists.getPhoto();
+
         Contact newContact = new Contact(id,
                 request.name(),
                 request.email(),
                 request.phone(),
+                photoName,
                 category
         );
 
         contactRepository.save(newContact);
+
+
+        if(photo != null && photoName != null) {
+            fileUploadService.saveFile(photo, photoName);
+        }
     }
 
     public void delete(UUID id) {
