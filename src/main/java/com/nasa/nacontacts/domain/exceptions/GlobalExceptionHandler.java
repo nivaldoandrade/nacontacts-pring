@@ -13,6 +13,20 @@ import java.util.List;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+
+    @ExceptionHandler(StorageNotFoundException.class)
+    public ResponseEntity<RestErrorResponse> handleUncaught(StorageNotFoundException e) {
+        int statusCode = HttpStatus.NOT_FOUND.value();
+
+        RestErrorResponse error = new RestErrorResponse(
+                statusCode,
+                e.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(statusCode).body(error);
+    }
+
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<RestErrorResponse> notFound(EntityNotFoundException e) {
         int  statusCode = HttpStatus.NOT_FOUND.value();
@@ -73,6 +87,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailAlreadyInUseException.class)
     public ResponseEntity<RestErrorResponse> handleEmailAlreadyInUse(EmailAlreadyInUseException e) {
         int statusCode = HttpStatus.BAD_REQUEST.value();
+
+        RestErrorResponse error = new RestErrorResponse(
+                statusCode,
+                e.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(statusCode).body(error);
+    }
+
+    @ExceptionHandler(FileTypeValidationException.class)
+    public ResponseEntity<RestErrorResponse> handleFileTypeValidation(FileTypeValidationException e) {
+        int statusCode = HttpStatus.BAD_REQUEST.value();
+
+        RestErrorResponse error = new RestErrorResponse(
+                statusCode,
+                e.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(statusCode).body(error);
+    }
+
+    @ExceptionHandler(FileStorageException.class)
+    public ResponseEntity<RestErrorResponse> handleFileStorageException(FileStorageException e) {
+        int statusCode = HttpStatus.INTERNAL_SERVER_ERROR.value();
 
         RestErrorResponse error = new RestErrorResponse(
                 statusCode,
