@@ -8,10 +8,11 @@ import com.nasa.nacontacts.domain.exceptions.EmailAlreadyInUseException;
 import com.nasa.nacontacts.domain.exceptions.EntityNotFoundException;
 import com.nasa.nacontacts.domain.repositories.ContactRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,8 +33,8 @@ public class ContactService {
         this.fileUploadService = fileUploadService;
     }
 
-    public List<Contact> findAll() {
-        List<Contact> contacts = contactRepository.findAll();
+    public Page<Contact> findAll(Pageable pageable) {
+        Page<Contact> contacts = contactRepository.findAll(pageable);
 
         return contacts;
     }

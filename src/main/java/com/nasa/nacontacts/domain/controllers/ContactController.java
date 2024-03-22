@@ -2,6 +2,7 @@ package com.nasa.nacontacts.domain.controllers;
 
 import com.nasa.nacontacts.domain.Entities.Contact;
 import com.nasa.nacontacts.domain.dtos.ContactDTO;
+import com.nasa.nacontacts.domain.dtos.ListContactDTO;
 import com.nasa.nacontacts.domain.dtos.request.CreateContactRequest;
 import com.nasa.nacontacts.domain.dtos.request.UpdateContactRequest;
 import com.nasa.nacontacts.domain.interfaces.FileType;
@@ -9,6 +10,10 @@ import com.nasa.nacontacts.domain.services.ContactService;
 import com.nasa.nacontacts.domain.services.FileUploadService;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -17,7 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -50,10 +54,20 @@ public class ContactController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ContactDTO>> list() {
-        List<Contact> contacts = contactService.findAll();
+    public ResponseEntity<ListContactDTO> list(
+            @RequestParam(name = "page", defaultValue = "0") Integer page,
+            @RequestParam(name = "size", defaultValue = "10") Integer size,
+            @RequestParam(name = "orderBy", defaultValue = "asc") String orderBy
+    ) {
+        Sort.Direction direction = "desc".equalsIgnoreCase(orderBy)
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
 
-        List<ContactDTO> contactsDTO = contacts.stream().map(ContactDTO::from).toList();
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, "name"));
+
+        Page<Contact> contacts = contactService.findAll(pageable);
+
+        ListContactDTO contactsDTO = ListContactDTO.from(contacts);
 
         return ResponseEntity.ok().body(contactsDTO);
     }
