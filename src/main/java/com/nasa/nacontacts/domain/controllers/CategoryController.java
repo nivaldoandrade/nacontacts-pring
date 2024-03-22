@@ -2,16 +2,20 @@ package com.nasa.nacontacts.domain.controllers;
 
 import com.nasa.nacontacts.domain.Entities.Category;
 import com.nasa.nacontacts.domain.dtos.CategoryDTO;
+import com.nasa.nacontacts.domain.dtos.ListCategoryDTO;
 import com.nasa.nacontacts.domain.dtos.request.CreateCategoryRequest;
 import com.nasa.nacontacts.domain.dtos.request.UpdateCategoryRequest;
 import com.nasa.nacontacts.domain.services.CategoryService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -29,10 +33,21 @@ public class CategoryController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CategoryDTO>> list() {
-        List<Category> categories = categoryService.list();
+    public ResponseEntity<ListCategoryDTO> list(
+//            @PageableDefault(page=0, size=10, sort = "name") Pageable pageable
+            @RequestParam(value = "page", defaultValue = "0") Integer page,
+            @RequestParam(value = "size", defaultValue = "10") Integer size,
+            @RequestParam(value = "orderBy", defaultValue = "asc") String orderBy
+    ) {
+        Sort.Direction sortDirection = "desc".equalsIgnoreCase(orderBy)
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
 
-        List<CategoryDTO> categoriesDTO = categories.stream().map(CategoryDTO::from).toList();
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, "name"));
+
+        Page<Category> categories = categoryService.list(pageable);
+
+        ListCategoryDTO categoriesDTO = ListCategoryDTO.from(categories);
 
         return ResponseEntity.ok().body(categoriesDTO);
     }

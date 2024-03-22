@@ -7,9 +7,10 @@ import com.nasa.nacontacts.domain.exceptions.CategoryExistsException;
 import com.nasa.nacontacts.domain.exceptions.EntityNotFoundException;
 import com.nasa.nacontacts.domain.repositories.CategoryRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,8 +24,8 @@ public class CategoryService {
         this.categoryRepository = categoryRepository;
     }
 
-    public List<Category> list() {
-        List<Category> categories = categoryRepository.findAll();
+    public Page<Category> list(Pageable pageable) {
+        Page<Category> categories = categoryRepository.findAll(pageable);
 
         return categories;
     }
