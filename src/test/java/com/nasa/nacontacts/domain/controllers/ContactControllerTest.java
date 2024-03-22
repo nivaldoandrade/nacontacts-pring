@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nasa.nacontacts.domain.Entities.Category;
 import com.nasa.nacontacts.domain.Entities.Contact;
 import com.nasa.nacontacts.domain.dtos.ContactDTO;
+import com.nasa.nacontacts.domain.dtos.ListContactDTO;
 import com.nasa.nacontacts.domain.dtos.request.CreateContactRequest;
 import com.nasa.nacontacts.domain.dtos.request.UpdateContactRequest;
 import com.nasa.nacontacts.domain.exceptions.EmailAlreadyInUseException;
@@ -20,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.*;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -128,31 +130,76 @@ public class ContactControllerTest {
 
     @Test
     void shouldShowListContacts() throws Exception {
-        when(contactService.findAll()).thenReturn(List.of(contact));
+        Sort sort = Sort.by(Sort.Direction.ASC, "name");
+        Pageable pageable = PageRequest.of(0, 10, sort);
+        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact), pageable, 1);
 
-        ContactDTO contactDTO = ContactDTO.from(contact);
+        when(contactService.findAll(pageable)).thenReturn(mockedContacts);
 
-        String expectedJson = objectMapper.writeValueAsString(List.of(contactDTO));
+        String expectedContacts = objectMapper.writeValueAsString(ListContactDTO.from(mockedContacts));
 
-        mockMvc.perform(get(url)
-                .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().json(expectedJson));
+       mockMvc.perform(get(url)
+               .accept(MediaType.APPLICATION_JSON))
+               .andExpect(status().isOk())
+               .andExpect(content().json(expectedContacts));
 
-        verify(contactService).findAll();
+        verify(contactService).findAll(pageable);
         verifyNoMoreInteractions(contactService);
     }
 
     @Test
+    void shouldShowAscendingListContacts() throws Exception {
+        Sort sort = Sort.by(Sort.Direction.ASC, "name");
+        Pageable pageable = PageRequest.of(0, 10, sort);
+        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact), pageable, 1);
+
+        when(contactService.findAll(pageable)).thenReturn(mockedContacts);
+
+        String expectedContacts = objectMapper.writeValueAsString(ListContactDTO.from(mockedContacts));
+
+        mockMvc.perform(get(url)
+                .accept(MediaType.APPLICATION_JSON)
+                .param("orderBy", "asc"))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expectedContacts));
+
+
+        verify(contactService).findAll(pageable);
+        verifyNoMoreInteractions(contactService);
+    }
+
+    @Test
+    void shouldShowDescendingListContacts() throws Exception {
+        Sort sort = Sort.by(Sort.Direction.DESC, "name");
+        Pageable pageable = PageRequest.of(0, 10, sort);
+        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact), pageable, 1);
+
+        System.out.println(pageable.getSort().descending());
+        when(contactService.findAll(pageable)).thenReturn(mockedContacts);
+
+        String expectedContacts = objectMapper.writeValueAsString(ListContactDTO.from(mockedContacts));
+
+        mockMvc.perform(get(url)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .param("orderBy", "desc"))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expectedContacts));
+
+
+        verify(contactService).findAll(pageable);
+        verifyNoMoreInteractions(contactService);
+    }
+    @Test
     void shouldReturnEmptyList() throws Exception {
-        when(contactService.findAll()).thenReturn(Collections.emptyList());
+        Page<Contact> mockedContacts = new PageImpl<>(Collections.emptyList());
+        when(contactService.findAll(any(Pageable.class))).thenReturn(mockedContacts);
 
         mockMvc.perform(get(url)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.totalItems").value(0));
 
-        verify(contactService).findAll();
+        verify(contactService).findAll(any(Pageable.class));
         verifyNoMoreInteractions(contactService);
     }
 

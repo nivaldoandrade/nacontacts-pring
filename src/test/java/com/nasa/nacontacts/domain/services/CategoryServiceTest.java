@@ -12,8 +12,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -35,14 +38,63 @@ public class CategoryServiceTest {
         Category facebook = new Category(null, "Facebook");
         Category twitter = new Category(null, "Twitter");
 
-        List<Category> categories = new ArrayList<>(Arrays.asList(facebook, twitter));
+        Page<Category> categories = new PageImpl<>(List.of(facebook, twitter));
 
-        when(categoryRepository.findAll()).thenReturn(categories);
+        when(categoryRepository.findAll(any(Pageable.class))).thenReturn(categories);
 
-        List<Category> categoriesReturn = categoryService.list();
+        Page<Category> categoriesReturn = categoryService.list(Pageable.unpaged());
 
         assertEquals(categories, categoriesReturn);
-        verify(categoryRepository).findAll();
+        verify(categoryRepository).findAll(any(Pageable.class));
+        verifyNoMoreInteractions(categoryRepository);
+    }
+
+    @Test
+    void shouldShowAscendingListCategories() {
+        Category facebook = new Category(null, "Facebook");
+        Category twitter = new Category(null, "Twitter");
+
+        Sort sort = Sort.by(Sort.Direction.ASC, "name");
+        Pageable pageable = PageRequest.of(0, 2, sort);
+
+        Page<Category> categories = new PageImpl<>(List.of(facebook, twitter));
+
+        when(categoryRepository.findAll(any(Pageable.class))).thenReturn(categories);
+
+        List<Category> expectedCategories = List.of(facebook, twitter);
+
+        Page<Category> categoriesReturn = categoryService.list(pageable);
+
+        assertEquals(expectedCategories, categoriesReturn.toList());
+        assertEquals(categories.getSort(), categoriesReturn.getSort());
+        assertEquals(categories.getSize(), categoriesReturn.getSize());
+        assertEquals(categories.getTotalPages(), categoriesReturn.getTotalPages());
+
+        verify(categoryRepository).findAll(pageable);
+        verifyNoMoreInteractions(categoryRepository);
+    }
+
+    @Test
+    void shouldShowDescendingListCategories() {
+        Category facebook = new Category(null, "Facebook");
+        Category twitter = new Category(null, "Twitter");
+
+        Sort sort = Sort.by(Sort.Direction.DESC, "name");
+        Pageable pageable = PageRequest.of(0, 10, sort);
+        Page<Category> categories = new PageImpl<>(List.of(twitter, facebook));
+
+        when(categoryRepository.findAll(any(Pageable.class))).thenReturn(categories);
+
+        List<Category> expectedCategories = List.of(twitter, facebook);
+
+        Page<Category> categoriesReturn = categoryService.list(pageable);
+
+        assertEquals(expectedCategories, categoriesReturn.toList());
+        assertEquals(categories.getSort(), categoriesReturn.getSort());
+        assertEquals(categories.getSize(), categoriesReturn.getSize());
+        assertEquals(categories.getTotalPages(), categoriesReturn.getTotalPages());
+
+        verify(categoryRepository).findAll(pageable);
         verifyNoMoreInteractions(categoryRepository);
     }
 

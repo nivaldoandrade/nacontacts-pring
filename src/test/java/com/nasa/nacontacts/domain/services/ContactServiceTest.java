@@ -12,9 +12,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,14 +45,62 @@ public class ContactServiceTest {
         Contact contact1 = new Contact(null, "contact1", "contact1@email.com", "contact1.jpg", "123456789", null);
         Contact contact2 = new Contact(null, "contact2", "contact2@email.com","contact2.jpg", "987654321", null);
 
-        List<Contact> contacts = Arrays.asList(contact1, contact2);
+        Page<Contact> contacts = new PageImpl<>(List.of(contact1, contact2));
 
-        when(contactRepository.findAll()).thenReturn(contacts);
+        when(contactRepository.findAll(any(Pageable.class))).thenReturn(contacts);
 
-        List<Contact> contactsReturn = contactService.findAll();
+        Page<Contact> contactsReturn = contactService.findAll(Pageable.unpaged());
 
         assertEquals(contacts, contactsReturn);
-        verify(contactRepository).findAll();
+        verify(contactRepository).findAll(any(Pageable.class));
+        verifyNoMoreInteractions(contactRepository);
+    }
+
+    @Test
+    void shouldShowAscendingListContacts() {
+        Contact contact1 = new Contact(null, "contact1", "contact1@email.com", "contact1.jpg", "123456789", null);
+        Contact contact2 = new Contact(null, "contact2", "contact2@email.com","contact2.jpg", "987654321", null);
+
+        Sort sort = Sort.by(Sort.Direction.ASC, "name");
+        Pageable pageable = PageRequest.of(0, 10, sort);
+        Page<Contact> contacts = new PageImpl<>(List.of(contact1, contact2));
+
+        when(contactRepository.findAll(any(Pageable.class))).thenReturn(contacts);
+
+        List<Contact> expectedContacts = List.of(contact1, contact2);
+
+        Page<Contact> contactsReturn = contactService.findAll(pageable);
+
+        assertEquals(expectedContacts, contactsReturn.toList());
+        assertEquals(contacts.getSort(), contactsReturn.getSort());
+        assertEquals(contacts.getSize(), contactsReturn.getSize());
+        assertEquals(contacts.getTotalPages(), contactsReturn.getTotalPages());
+
+        verify(contactRepository).findAll(pageable);
+        verifyNoMoreInteractions(contactRepository);
+    }
+
+    @Test
+    void shouldShowDescendingListContacts() {
+        Contact contact1 = new Contact(null, "contact1", "contact1@email.com", "contact1.jpg", "123456789", null);
+        Contact contact2 = new Contact(null, "contact2", "contact2@email.com","contact2.jpg", "987654321", null);
+
+        Sort sort = Sort.by(Sort.Direction.DESC, "name");
+        Pageable pageable = PageRequest.of(0, 10, sort);
+        Page<Contact> contacts = new PageImpl<>(List.of(contact2, contact1));
+
+        when(contactRepository.findAll(any(Pageable.class))).thenReturn(contacts);
+
+        List<Contact> expectedContacts = List.of(contact2, contact1);
+
+        Page<Contact> contactsReturn = contactService.findAll(pageable);
+
+        assertEquals(expectedContacts, contactsReturn.toList());
+        assertEquals(contacts.getSort(), contactsReturn.getSort());
+        assertEquals(contacts.getSize(), contactsReturn.getSize());
+        assertEquals(contacts.getTotalPages(), contactsReturn.getTotalPages());
+
+        verify(contactRepository).findAll(pageable);
         verifyNoMoreInteractions(contactRepository);
     }
 
