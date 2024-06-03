@@ -5,7 +5,6 @@ import com.nasa.nacontacts.domain.dtos.ContactDTO;
 import com.nasa.nacontacts.domain.dtos.ListContactDTO;
 import com.nasa.nacontacts.domain.dtos.request.CreateContactRequest;
 import com.nasa.nacontacts.domain.dtos.request.UpdateContactRequest;
-import com.nasa.nacontacts.domain.interfaces.FileType;
 import com.nasa.nacontacts.domain.services.ContactService;
 import com.nasa.nacontacts.domain.services.FileUploadService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +13,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -25,7 +23,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
@@ -152,12 +149,8 @@ public class ContactController {
             @ApiResponse(responseCode = "500", content = @Content),
     })
     @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public ResponseEntity<Object> create(@ParameterObject @ModelAttribute @Validated CreateContactRequest request,
-                                         @RequestPart(required = false)
-                                         @Validated @FileType(allowedExtensions = {".jpg", ".jpeg", ".png"})
-                                         MultipartFile photo
-    ) {
-        Contact newContact = contactService.create(request, photo);
+    public ResponseEntity<Object> create(@ModelAttribute @Validated CreateContactRequest request) {
+        Contact newContact = contactService.create(request);
 
         URI uri = ServletUriComponentsBuilder
                 .fromCurrentRequest().path("/{id}")
@@ -179,12 +172,10 @@ public class ContactController {
     })
     @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public  ResponseEntity<Void> update(@PathVariable UUID id,
-                                        @ParameterObject @ModelAttribute @Validated UpdateContactRequest request,
-                                        @RequestPart(required = false)
-                                        @Validated @FileType(allowedExtensions = {".jpg", ".jpeg", ".png"})
-                                        MultipartFile photo
+                                        @ModelAttribute @Validated UpdateContactRequest request
+
     ) {
-        contactService.update(id, request, photo);
+        contactService.update(id, request);
 
         return ResponseEntity.noContent().build();
     }

@@ -1,15 +1,13 @@
 package com.nasa.nacontacts.domain.Entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "contact")
+@Builder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

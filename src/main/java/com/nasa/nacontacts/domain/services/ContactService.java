@@ -46,10 +46,12 @@ public class ContactService {
         return contact;
     }
 
-    public Contact create(CreateContactRequest contact, MultipartFile photo) {
-        Category categoryExists = categoryService.findById(contact.category_id());
 
-        Optional<Contact> contactByEmailExists = contactRepository.findByEmail(contact.email());
+    public Contact create(CreateContactRequest request) {
+        MultipartFile photo = request.photo();
+        Category categoryExists = categoryService.findById(request.category_id());
+
+        Optional<Contact> contactByEmailExists = contactRepository.findByEmail(request.email());
 
         if(contactByEmailExists.isPresent()) {
             throw new EmailAlreadyInUseException();
@@ -59,14 +61,7 @@ public class ContactService {
                 ? fileUploadService.generateFileName(photo.getOriginalFilename())
                 : null;
 
-        Contact newContact = new Contact(
-                null,
-                contact.name(),
-                contact.email(),
-                contact.phone(),
-                photoName,
-                categoryExists
-        );
+        Contact newContact = CreateContactRequest.to(request, photoName, categoryExists);
 
        newContact = contactRepository.save(newContact);
 
@@ -77,7 +72,8 @@ public class ContactService {
        return newContact;
     }
 
-    public void update(UUID id, UpdateContactRequest request, MultipartFile photo) {
+    public void update(UUID id, UpdateContactRequest request) {
+        MultipartFile photo = request.photo();
         Contact contactExists = this.findById(id);
 
         Optional<Contact> contactByEmailExists = contactRepository.findByEmail(request.email());

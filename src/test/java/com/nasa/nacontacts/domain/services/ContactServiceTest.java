@@ -143,7 +143,7 @@ public class ContactServiceTest {
         UUID categoryId = UUID.randomUUID();
         Category category = new Category(categoryId, "Facebook");
 
-        Contact contact = new Contact(null, "contact1", "contact1@email.com", "123456789", null, category);
+        Contact contact = new Contact(null, "contact1", "contact1@email.com", "123456789", photoName, category);
 
         when(categoryService.findById(categoryId)).thenReturn(category);
         when(contactRepository.findByEmail(contact.getEmail())).thenReturn(Optional.empty());
@@ -151,8 +151,8 @@ public class ContactServiceTest {
         when(fileUploadService.generateFileName(mockedFile.getOriginalFilename())).thenReturn(photoName);
         when(contactRepository.save(contact)).thenReturn(contact);
 
-        CreateContactRequest createContactRequest = CreateContactRequest.fromContact(contact);
-        Contact contactReturn = contactService.create(createContactRequest, mockedFile);
+        CreateContactRequest createContactRequest = CreateContactRequest.fromContact(contact, mockedFile);
+        Contact contactReturn = contactService.create(createContactRequest);
 
         assertEquals(contact, contactReturn);
         verify(categoryService).findById(categoryId);
@@ -168,13 +168,13 @@ public class ContactServiceTest {
         mockedCategory.setId(UUID.randomUUID());
 
         Contact contact = new Contact(null, "contact1", "contact1@email.com", "123456789", null, mockedCategory);
-        CreateContactRequest createContactRequest = CreateContactRequest.fromContact(contact);
+        CreateContactRequest createContactRequest = CreateContactRequest.fromContact(contact, null);
 
         when(categoryService.findById(mockedCategory.getId())).thenReturn(mockedCategory);
         when(contactRepository.findByEmail(any(String.class))).thenReturn(Optional.empty());
         when(contactRepository.save(contact)).thenReturn(contact);
 
-        contactService.create(createContactRequest, null);
+        contactService.create(createContactRequest);
 
         verify(categoryService).findById(mockedCategory.getId());
         verify(contactRepository).findByEmail(any(String.class));
@@ -186,25 +186,20 @@ public class ContactServiceTest {
 
     @Test
     void shouldThrowErrorWhenCreateContactWithDuplicateEmail() {
-        MultipartFile mockedFile = mock(MultipartFile.class);
-
-        Optional<Contact> mockedContact = Optional.of(mock(Contact.class));
-
         UUID categoryId = UUID.randomUUID();
         Category category = new Category(categoryId, "Facebook");
 
-        Contact contact = new Contact(null, "contact1", "contact1@email.com","contact1.jpg", "123456789", category);
+        Contact contact = new Contact(null, "contact1", "contact1@email.com","123456789", null, category);
 
-        mockedContact.get().setEmail(contact.getEmail());
 
         when(categoryService.findById(categoryId)).thenReturn(category);
-        when(contactRepository.findByEmail(contact.getEmail())).thenReturn(mockedContact);
+        when(contactRepository.findByEmail(contact.getEmail())).thenReturn(Optional.of(contact));
 
-        CreateContactRequest createContactRequest = CreateContactRequest.fromContact(contact);
+        CreateContactRequest createContactRequest = CreateContactRequest.fromContact(contact, null);
 
         EmailAlreadyInUseException e = assertThrows(
                 EmailAlreadyInUseException.class,
-                () -> contactService.create(createContactRequest, mockedFile)
+                () -> contactService.create(createContactRequest)
         );
 
         assertEquals(e.getMessage(), "Email is already in use");
@@ -224,8 +219,8 @@ public class ContactServiceTest {
         Category category = new Category(categoryId, "Facebook");
 
         UUID contactId = UUID.randomUUID();
-        Contact contact = new Contact(null, "contact1", "contact1@email.com","123456789",null, category);
-        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contact);
+        Contact contact = new Contact(null, "contact1", "contact1@email.com","123456789",photoName, category);
+        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contact, mockedFile);
         contact.setId(contactId);
 
         when(contactRepository.findById(contactId)).thenReturn(Optional.of(contact));
@@ -235,7 +230,7 @@ public class ContactServiceTest {
         when(fileUploadService.generateFileName(originalFilename)).thenReturn(photoName);
         when(contactRepository.save(contact)).thenReturn(contact);
 
-        contactService.update(contactId ,updateContactRequest, mockedFile);
+        contactService.update(contactId ,updateContactRequest);
 
         verify(contactRepository).findById(contactId);
         verify(contactRepository).findByEmail(updateContactRequest.email());
@@ -248,20 +243,18 @@ public class ContactServiceTest {
 
     @Test
     void shouldUpdateContactWithoutPhoto() {
-        Category mockedCategory = mock(Category.class);
-        mockedCategory.setId(UUID.randomUUID());
+        UUID categoryId = UUID.randomUUID();
+        Category category = new Category(categoryId, "Facebook");
 
         UUID id = UUID.randomUUID();
-        Contact contact = new Contact(null, "contact1", "contact1@email.com","123456789",null, mockedCategory);
-        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contact);
+        Contact contact = new Contact(null, "contact1", "contact1@email.com","123456789",null, category);
+        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contact, null);
         contact.setId(id);
 
         when(contactRepository.findById(id)).thenReturn(Optional.of(contact));
         when(contactRepository.findByEmail(updateContactRequest.email())).thenReturn(Optional.of(contact));
-        when(categoryService.findById(mockedCategory.getId())).thenReturn(mockedCategory);
 
-
-        contactService.update(id, updateContactRequest, null);
+        contactService.update(id, updateContactRequest);
 
         verify(contactRepository).save(contact);
         verifyNoMoreInteractions(contactRepository);
@@ -270,22 +263,22 @@ public class ContactServiceTest {
 
     @Test
     void shouldThrowErrorWhenUpdateContactWithDuplicateEmail() {
-        MultipartFile mockedFile = mock(MultipartFile.class);
         UUID categoryId = UUID.randomUUID();
         Category category = new Category(categoryId, "Facebook");
 
         UUID contact1Id = UUID.randomUUID();
-        Contact contact1 = new Contact(null, "contact1", "contact1@email.com", "123456789","contact1.jpg" ,category);
-        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contact1);
+        Contact contact1 = new Contact(null, "contact1", "contact1@email.com", "123456789",null,category);
 
-        Contact contact2 = new Contact(UUID.randomUUID(), "contact2", "contact2@email.com", "123456789","contact1.jpg",null);
+        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contact1, null);
+        contact1.setId(contact1Id);
+        Contact contact2 = new Contact(UUID.randomUUID(), "contact2", "contact2@email.com", "123456789",null,category);
 
-        when(contactRepository.findById(contact1Id)).thenReturn(Optional.of(contact1));
-        when(contactRepository.findByEmail(updateContactRequest.email())).thenReturn(Optional.of(contact2));
+        when(contactRepository.findById(any(UUID.class))).thenReturn(Optional.of(contact1));
+        when(contactRepository.findByEmail(any(String.class))).thenReturn(Optional.of(contact2));
 
         EmailAlreadyInUseException e = assertThrows(
                 EmailAlreadyInUseException.class,
-                () -> contactService.update(contact1Id ,updateContactRequest, mockedFile)
+                () -> contactService.update(contact1Id ,updateContactRequest)
         );
 
         assertEquals(e.getMessage(), "Email is already in use");
@@ -298,7 +291,7 @@ public class ContactServiceTest {
     @Test
     void shouldDeleteContact() {
         UUID contactId = UUID.randomUUID();
-        Contact contact = new Contact(contactId, "contact", "contact@email.com", "123456789", "contact1.jpg" ,null);
+        Contact contact = new Contact(contactId, "contact", "contact@email.com", "123456789", null ,null);
 
         when(contactRepository.findById(contactId)).thenReturn(Optional.of(contact));
 
