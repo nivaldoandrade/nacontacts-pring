@@ -1,7 +1,6 @@
 package com.nasa.nacontacts.domain.validators;
 
-import com.nasa.nacontacts.domain.exceptions.FileTypeValidationException;
-import com.nasa.nacontacts.domain.interfaces.FileType;
+import com.nasa.nacontacts.domain.constraints.FileType;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,9 +26,9 @@ public class FileTypeValidator implements ConstraintValidator<FileType, Multipar
        String originalFileName = file.getOriginalFilename();
        String extension = originalFileName != null ? originalFileName.substring(originalFileName.lastIndexOf(".")).toLowerCase() : null;
 
-       if(!allowedExtensions.contains(extension)) {
-           throw new FileTypeValidationException("The file type is not accepted");
-       }
+//       if(!allowedExtensions.contains(extension)) {
+//           throw new FileTypeValidationException("The file type is not accepted exception");
+//       }
 
        return allowedExtensions.contains(extension);
     }

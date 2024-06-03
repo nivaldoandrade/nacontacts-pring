@@ -5,9 +5,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @ControllerAdvice
@@ -38,6 +40,34 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(statusCode).body(error);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<RestErrorResponseWithFieldErrors> handlerHandlerMethodValidationException(
+            HandlerMethodValidationException e
+    ) {
+        int statusCode = HttpStatus.BAD_REQUEST.value();
+
+
+        List<FieldError> fieldErrors = new ArrayList<>();
+
+
+        e.getAllValidationResults().forEach(validator -> {
+            String parameterName = validator.getMethodParameter().getParameterName();
+
+            validator.getResolvableErrors().forEach(ve -> {
+                fieldErrors.add(new FieldError(parameterName, ve.getDefaultMessage()));
+            });
+        });
+
+        RestErrorResponseWithFieldErrors errors = new RestErrorResponseWithFieldErrors(
+                statusCode,
+                fieldErrors,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(statusCode).body(errors);
+
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -86,19 +116,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(EmailAlreadyInUseException.class)
     public ResponseEntity<RestErrorResponse> handleEmailAlreadyInUse(EmailAlreadyInUseException e) {
-        int statusCode = HttpStatus.BAD_REQUEST.value();
-
-        RestErrorResponse error = new RestErrorResponse(
-                statusCode,
-                e.getMessage(),
-                LocalDateTime.now()
-        );
-
-        return ResponseEntity.status(statusCode).body(error);
-    }
-
-    @ExceptionHandler(FileTypeValidationException.class)
-    public ResponseEntity<RestErrorResponse> handleFileTypeValidation(FileTypeValidationException e) {
         int statusCode = HttpStatus.BAD_REQUEST.value();
 
         RestErrorResponse error = new RestErrorResponse(

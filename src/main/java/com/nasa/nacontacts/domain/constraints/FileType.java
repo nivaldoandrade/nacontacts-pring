@@ -1,4 +1,4 @@
-package com.nasa.nacontacts.domain.interfaces;
+package com.nasa.nacontacts.domain.constraints;
 
 import com.nasa.nacontacts.domain.validators.FileTypeValidator;
 import jakarta.validation.Constraint;
@@ -12,7 +12,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FileType {
 
-    String message() default "The file is not accepted";
+    String message() default "The file type is not accepted";
     String[] allowedExtensions();
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
