@@ -7,17 +7,16 @@ import com.nasa.nacontacts.domain.dtos.request.UpdateContactRequest;
 import com.nasa.nacontacts.domain.exceptions.EmailAlreadyInUseException;
 import com.nasa.nacontacts.domain.exceptions.EntityNotFoundException;
 import com.nasa.nacontacts.domain.repositories.ContactRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
-@Transactional
 public class ContactService {
 
     private final ContactRepository contactRepository;
@@ -47,68 +46,82 @@ public class ContactService {
     }
 
 
-    public Contact create(CreateContactRequest request) {
-        MultipartFile photo = request.photo();
-        Category categoryExists = categoryService.findById(request.category_id());
+    @Transactional
+    public Contact create(CreateContactRequest contact) {
+        Category categoryExists = categoryService.findById(contact.category_id());
 
-        Optional<Contact> contactByEmailExists = contactRepository.findByEmail(request.email());
+        Optional<Contact> contactByEmailExists = contactRepository.findByEmail(contact.email());
 
         if(contactByEmailExists.isPresent()) {
             throw new EmailAlreadyInUseException();
         }
 
-        String photoName = photo != null
-                ? fileUploadService.generateFileName(photo.getOriginalFilename())
-                : null;
+        String photoName = handlePhoto(contact.photo());
 
-        Contact newContact = CreateContactRequest.to(request, photoName, categoryExists);
+        Contact newContact = CreateContactRequest.to(contact, photoName, categoryExists);
 
-       newContact = contactRepository.save(newContact);
-
-       if(photoName != null) {
-           fileUploadService.saveFile(photo, photoName);
-       }
-
-       return newContact;
+        return contactRepository.save(newContact);
     }
 
+    @Transactional
     public void update(UUID id, UpdateContactRequest request) {
-        MultipartFile photo = request.photo();
-        Contact contactExists = this.findById(id);
 
-        Optional<Contact> contactByEmailExists = contactRepository.findByEmail(request.email());
+        Contact existingContact = this.findById(id);
 
-        contactByEmailExists.ifPresent((c) -> {
-            if(!c.getId().equals(contactExists.getId())) {
-                throw new EmailAlreadyInUseException();
-            }
-        });
+        validateEmailUniqueness(request.email(), existingContact.getId());
 
-        Category category = categoryService.findById(request.category_id());
+        Category category = resolveCategory(existingContact, request.category_id());
 
-        String photoName = photo != null
-                ? fileUploadService.generateFileName(photo.getOriginalFilename())
-                : contactExists.getPhoto();
+        String photoName = handlePhoto(request.photo(), existingContact.getPhoto());
 
-        Contact newContact = new Contact(id,
-                request.name(),
-                request.email(),
-                request.phone(),
-                photoName,
-                category
-        );
+        Contact newContact = UpdateContactRequest.to(id, request, photoName, category);
 
         contactRepository.save(newContact);
-
-
-        if(photo != null && photoName != null) {
-            fileUploadService.saveFile(photo, photoName);
-        }
     }
 
+    @Transactional
     public void delete(UUID id) {
         Contact contact = this.findById(id);
 
+        if(contact.getPhoto() != null) {
+            fileUploadService.deleteFile(contact.getPhoto());
+        }
+
         contactRepository.delete(contact);
     }
-;}
+
+    private void validateEmailUniqueness(String email, UUID existingContactId) {
+        Optional<Contact> contactByEmailExists = contactRepository.findByEmail(email);
+
+        contactByEmailExists.ifPresent((c) -> {
+            if(!c.getId().equals(existingContactId)) {
+                throw new EmailAlreadyInUseException();
+            }
+        });
+    }
+
+    private Category resolveCategory(Contact existingContact, UUID categoryId) {
+        return existingContact.getCategory().getId().equals(categoryId)
+                ? existingContact.getCategory()
+                : categoryService.findById(categoryId);
+    }
+
+    private String handlePhoto(MultipartFile newFile, String existingPhotoName) {
+        if(newFile != null){
+            String newPhotoName = fileUploadService.generateFileName(newFile.getOriginalFilename());
+            fileUploadService.saveFile(newFile, newPhotoName);
+
+            if(existingPhotoName != null) {
+                fileUploadService.deleteFile(existingPhotoName);
+            }
+
+            return newPhotoName;
+        }
+
+        return existingPhotoName;
+    }
+
+    private String handlePhoto(MultipartFile newFile) {
+        return handlePhoto(newFile, null);
+    }
+    ;}

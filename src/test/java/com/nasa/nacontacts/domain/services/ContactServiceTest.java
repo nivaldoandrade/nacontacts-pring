@@ -225,7 +225,6 @@ public class ContactServiceTest {
 
         when(contactRepository.findById(contactId)).thenReturn(Optional.of(contact));
         when(contactRepository.findByEmail(updateContactRequest.email())).thenReturn(Optional.of(contact));
-        when(categoryService.findById(categoryId)).thenReturn(category);
         when(mockedFile.getOriginalFilename()).thenReturn(originalFilename);
         when(fileUploadService.generateFileName(originalFilename)).thenReturn(photoName);
         when(contactRepository.save(contact)).thenReturn(contact);
@@ -234,10 +233,10 @@ public class ContactServiceTest {
 
         verify(contactRepository).findById(contactId);
         verify(contactRepository).findByEmail(updateContactRequest.email());
-        verify(categoryService).findById(categoryId);
         verify(fileUploadService).generateFileName(originalFilename);
         verify(fileUploadService).saveFile(mockedFile, photoName);
         verify(contactRepository).save(contact);
+        verifyNoInteractions(categoryService);
         verifyNoMoreInteractions(contactRepository);
     }
 
@@ -259,6 +258,28 @@ public class ContactServiceTest {
         verify(contactRepository).save(contact);
         verifyNoMoreInteractions(contactRepository);
         verifyNoInteractions(fileUploadService);
+        verifyNoInteractions(categoryService);
+    }
+
+    @Test
+    void shouldUpdateContactWithNewCategory() {
+        Category categoryRequest = new Category(UUID.randomUUID(), "Facebook");
+        Category categoryReturn = new Category(UUID.randomUUID(), "Facebook");
+
+        UUID id = UUID.randomUUID();
+        Contact contactRequest = new Contact(null, "contact1", "contact1@email.com","123456789",null, categoryRequest);
+        Contact contactReturn = new Contact(id, "contact1", "contact1@email.com","123456789",null, categoryReturn);
+        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contactRequest, null);
+
+
+        when(contactRepository.findById(id)).thenReturn(Optional.of(contactReturn));
+        when(contactRepository.findByEmail(any(String.class))).thenReturn(Optional.of(contactReturn));
+        when(categoryService.findById(any(UUID.class))).thenReturn(mock(Category.class));
+
+        contactService.update(id, updateContactRequest);
+
+        verify(contactRepository).save(contactReturn);
+        verify(categoryService).findById(any(UUID.class));
     }
 
     @Test
@@ -300,6 +321,19 @@ public class ContactServiceTest {
         verify(contactRepository).findById(contactId);
         verify(contactRepository).delete(contact);
         verifyNoMoreInteractions(contactRepository);
+    }
+
+    @Test
+    void shouldDeleteContactWithPhoto() {
+        Contact contact = new Contact();
+        contact.setPhoto("uuid-photo.png");
+
+        when(contactRepository.findById(any(UUID.class))).thenReturn(Optional.of(contact));
+
+        contactService.delete(UUID.randomUUID());
+
+        verify(contactRepository).delete(contact);
+        verify(fileUploadService).deleteFile(contact.getPhoto());
 
     }
 }

@@ -67,6 +67,16 @@ public class FileUploadService {
         }
     }
 
+    public void deleteFile(String filename) {
+        try {
+            Path targetLocation = this.fileStorageLocation.resolve(filename);
+
+            Files.deleteIfExists(targetLocation);
+        }catch (IOException e) {
+            throw new StorageNotFoundException("Error when deleting file");
+        }
+    }
+
     public String generateFileName(String originalFilename) {
        return UUID.randomUUID().toString() + "_" + originalFilename;
     }

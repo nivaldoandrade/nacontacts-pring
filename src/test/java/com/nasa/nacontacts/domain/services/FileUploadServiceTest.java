@@ -169,4 +169,33 @@ public class FileUploadServiceTest {
         mockedFiles.close();
     }
 
+    @Test
+    void shouldDeleteFile() throws IOException {
+
+        MockedStatic<Files> mockedFiles = mockStatic(Files.class);
+
+        fileUploadService.deleteFile("filename.jpg");
+
+        mockedFiles.verify(() -> Files.deleteIfExists(any(Path.class)));
+        mockedFiles.close();
+    }
+
+    @Test
+    void shouldThrowIOExceptionErrorWhenDeleteFile() throws IOException {
+        MockedStatic<Files> mockedFiles = mockStatic(Files.class);
+
+        String messageError = "Error when deleting file";
+        doThrow(new IOException(messageError)).when(Files.class);
+        Files.deleteIfExists(any(Path.class));
+
+        StorageNotFoundException e = assertThrows(
+                StorageNotFoundException.class,
+                () -> fileUploadService.deleteFile("filename.jpg")
+        );
+
+        mockedFiles.verify(() -> Files.deleteIfExists(any(Path.class)));
+        assertEquals(e.getMessage(), messageError);
+        mockedFiles.close();
+    }
+
 }
