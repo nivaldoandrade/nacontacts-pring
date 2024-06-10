@@ -41,18 +41,18 @@ public class ContactServiceTest {
     FileUploadService fileUploadService;
 
     @Test
-    void shouldShowListCategories() {
+    void shouldShowListContacts() {
         Contact contact1 = new Contact(null, "contact1", "contact1@email.com", "contact1.jpg", "123456789", null);
         Contact contact2 = new Contact(null, "contact2", "contact2@email.com","contact2.jpg", "987654321", null);
 
         Page<Contact> contacts = new PageImpl<>(List.of(contact1, contact2));
 
-        when(contactRepository.findAll(any(Pageable.class))).thenReturn(contacts);
+        when(contactRepository.findAll(any(String.class), any(Pageable.class))).thenReturn(contacts);
 
-        Page<Contact> contactsReturn = contactService.findAll(Pageable.unpaged());
+        Page<Contact> contactsReturn = contactService.list(Pageable.unpaged(), "");
 
         assertEquals(contacts, contactsReturn);
-        verify(contactRepository).findAll(any(Pageable.class));
+        verify(contactRepository).findAll(any(String.class), any(Pageable.class));
         verifyNoMoreInteractions(contactRepository);
     }
 
@@ -65,18 +65,18 @@ public class ContactServiceTest {
         Pageable pageable = PageRequest.of(0, 10, sort);
         Page<Contact> contacts = new PageImpl<>(List.of(contact1, contact2));
 
-        when(contactRepository.findAll(any(Pageable.class))).thenReturn(contacts);
+        when(contactRepository.findAll(any(String.class), any(Pageable.class))).thenReturn(contacts);
 
         List<Contact> expectedContacts = List.of(contact1, contact2);
 
-        Page<Contact> contactsReturn = contactService.findAll(pageable);
+        Page<Contact> contactsReturn = contactService.list(pageable, "");
 
         assertEquals(expectedContacts, contactsReturn.toList());
         assertEquals(contacts.getSort(), contactsReturn.getSort());
         assertEquals(contacts.getSize(), contactsReturn.getSize());
         assertEquals(contacts.getTotalPages(), contactsReturn.getTotalPages());
 
-        verify(contactRepository).findAll(pageable);
+        verify(contactRepository).findAll(any(String.class), eq(pageable));
         verifyNoMoreInteractions(contactRepository);
     }
 
@@ -89,18 +89,36 @@ public class ContactServiceTest {
         Pageable pageable = PageRequest.of(0, 10, sort);
         Page<Contact> contacts = new PageImpl<>(List.of(contact2, contact1));
 
-        when(contactRepository.findAll(any(Pageable.class))).thenReturn(contacts);
+        when(contactRepository.findAll(any(String.class), any(Pageable.class))).thenReturn(contacts);
 
         List<Contact> expectedContacts = List.of(contact2, contact1);
 
-        Page<Contact> contactsReturn = contactService.findAll(pageable);
+        Page<Contact> contactsReturn = contactService.list(pageable, "");
 
         assertEquals(expectedContacts, contactsReturn.toList());
         assertEquals(contacts.getSort(), contactsReturn.getSort());
         assertEquals(contacts.getSize(), contactsReturn.getSize());
         assertEquals(contacts.getTotalPages(), contactsReturn.getTotalPages());
 
-        verify(contactRepository).findAll(pageable);
+        verify(contactRepository).findAll(any(String.class), eq(pageable));
+        verifyNoMoreInteractions(contactRepository);
+    }
+
+    @Test
+    void shouldShowFilteredListContacts() {
+        Contact contact1 = new Contact(UUID.randomUUID(), "contact1", "contact1@email.com", "contact1.jpg", "123456789", null);
+
+        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact1));
+
+        when(contactRepository.findAll(any(String.class), any(Pageable.class))).thenReturn(mockedContacts);
+
+        List<Contact> expectedContacts = List.of(contact1);
+
+        Page<Contact> contactsReturn = contactService.list(Pageable.unpaged(), "contact1");
+
+        assertEquals(expectedContacts, contactsReturn.toList());
+
+        verify(contactRepository).findAll(any(String.class), any(Pageable.class));
         verifyNoMoreInteractions(contactRepository);
     }
 

@@ -93,7 +93,8 @@ public class ContactController {
     public ResponseEntity<ListContactDTO> list(
             @RequestParam(name = "page", defaultValue = "0") Integer page,
             @RequestParam(name = "size", defaultValue = "10") Integer size,
-            @RequestParam(name = "orderBy", defaultValue = "asc") String orderBy
+            @RequestParam(name = "orderBy", defaultValue = "asc") String orderBy,
+            @RequestParam(required = false) String search
     ) {
         Sort.Direction direction = "desc".equalsIgnoreCase(orderBy)
                 ? Sort.Direction.DESC
@@ -101,7 +102,7 @@ public class ContactController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, "name"));
 
-        Page<Contact> contacts = contactService.findAll(pageable);
+        Page<Contact> contacts = contactService.list(pageable, search);
 
         ListContactDTO contactsDTO = ListContactDTO.from(contacts);
 

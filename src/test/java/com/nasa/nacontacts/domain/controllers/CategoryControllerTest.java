@@ -62,7 +62,7 @@ public class CategoryControllerTest {
 
         Page<Category> categories = new PageImpl<>(List.of(category));
 
-        when(categoryService.list(any(Pageable.class))).thenReturn(categories);
+        when(categoryService.list(any(Pageable.class), eq(null))).thenReturn(categories);
 
         String expectedCategories = objectMapper.writeValueAsString(ListCategoryDTO.from(categories));
 
@@ -81,7 +81,7 @@ public class CategoryControllerTest {
         assertTrue(returnedCategories.contains(categoryDTO));
 */
 
-        verify(categoryService).list(any(Pageable.class));
+        verify(categoryService).list(any(Pageable.class), eq(null));
         verifyNoMoreInteractions(categoryService);
     }
 
@@ -89,12 +89,9 @@ public class CategoryControllerTest {
     void shouldShowAscendingListCategories() throws Exception {
         Category category = new Category(UUID.randomUUID(), "Facebook");
 
-        Sort sort = Sort.by(Sort.Direction.ASC, "name");
-        Pageable pageable = PageRequest.of(0, 10, sort);
+        Page<Category> categories = new PageImpl<>(List.of(category));
 
-        Page<Category> categories = new PageImpl<>(List.of(category),pageable, 1);
-
-        when(categoryService.list(pageable)).thenReturn(categories);
+        when(categoryService.list(any(Pageable.class), eq(null))).thenReturn(categories);
 
         String expectedCategories = objectMapper.writeValueAsString(ListCategoryDTO.from(categories));
 
@@ -104,7 +101,7 @@ public class CategoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json(expectedCategories));
 
-        verify(categoryService).list(pageable);
+        verify(categoryService).list(any(Pageable.class), eq(null));
         verifyNoMoreInteractions(categoryService);
     }
 
@@ -112,12 +109,9 @@ public class CategoryControllerTest {
     void shouldShowDescendingListCategories() throws Exception {
         Category category = new Category(UUID.randomUUID(), "Facebook");
 
-        Sort sort = Sort.by(Sort.Direction.DESC, "name");
-        Pageable pageable = PageRequest.of(0, 10, sort);
+        Page<Category> categories = new PageImpl<>(List.of(category));
 
-        Page<Category> categories = new PageImpl<>(List.of(category), pageable, 1);
-
-        when(categoryService.list(pageable)).thenReturn(categories);
+        when(categoryService.list(any(Pageable.class), eq(null))).thenReturn(categories);
 
         String expectedCategories = objectMapper.writeValueAsString(ListCategoryDTO.from(categories));
 
@@ -127,8 +121,30 @@ public class CategoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json(expectedCategories));
 
-        verify(categoryService).list(pageable);
+        verify(categoryService).list(any(Pageable.class), eq(null));
         verifyNoMoreInteractions(categoryService);
+
+    }
+
+    @Test
+    void shouldShowFilteredListCategories() throws Exception {
+        Category category = new Category(UUID.randomUUID(), "Category 1");
+
+        Page<Category> categories = new PageImpl<>(List.of(category));
+
+        when(categoryService.list(any(Pageable.class), any(String.class))).thenReturn(categories);
+
+        String expectedCategories = objectMapper.writeValueAsString(ListCategoryDTO.from(categories));
+
+        mockMvc.perform(get(url)
+                .param("search", "category 1")
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expectedCategories));
+
+        verify(categoryService).list(any(Pageable.class), any(String.class));
+        verifyNoMoreInteractions(categoryService);
+
 
     }
 
@@ -136,7 +152,7 @@ public class CategoryControllerTest {
     void shouldShowEmptyListCategories() throws Exception {
         Page<Category> categories = new PageImpl<>(Collections.emptyList());
 
-        when(categoryService.list(any(Pageable.class))).thenReturn(categories);
+        when(categoryService.list(any(Pageable.class), any(String.class))).thenReturn(categories);
 
         mockMvc.perform(get(url)
                 .accept(MediaType.APPLICATION_JSON)
@@ -144,7 +160,7 @@ public class CategoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalItems").value(0));
 
-        verify(categoryService).list(any(Pageable.class));
+        verify(categoryService).list(any(Pageable.class), any(String.class));
         verifyNoMoreInteractions(categoryService);
     }
 

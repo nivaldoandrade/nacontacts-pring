@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.nasa.nacontacts.domain.utils.StringUtils.removeAccents;
+
 @Service
 @Transactional()
 public class CategoryService {
@@ -24,8 +26,14 @@ public class CategoryService {
         this.categoryRepository = categoryRepository;
     }
 
-    public Page<Category> list(Pageable pageable) {
-        Page<Category> categories = categoryRepository.findAll(pageable);
+    public Page<Category> list(Pageable pageable,String search) {
+
+        String searchNormalize = removeAccents(search);
+
+        Page<Category> categories = categoryRepository.findAll(
+                searchNormalize,
+                pageable
+        );
 
         return categories;
     }

@@ -60,7 +60,8 @@ public class CategoryController {
 //            @PageableDefault(page=0, size=10, sort = "name") Pageable pageable
             @RequestParam(value = "page", defaultValue = "0") Integer page,
             @RequestParam(value = "size", defaultValue = "10") Integer size,
-            @RequestParam(value = "orderBy", defaultValue = "asc") String orderBy
+            @RequestParam(value = "orderBy", defaultValue = "asc") String orderBy,
+            @RequestParam(required = false) String search
     ) {
         Sort.Direction sortDirection = "desc".equalsIgnoreCase(orderBy)
                 ? Sort.Direction.DESC
@@ -68,7 +69,7 @@ public class CategoryController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, "name"));
 
-        Page<Category> categories = categoryService.list(pageable);
+        Page<Category> categories = categoryService.list(pageable, search);
 
         ListCategoryDTO categoriesDTO = ListCategoryDTO.from(categories);
 

@@ -16,6 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.nasa.nacontacts.domain.utils.StringUtils.removeAccents;
+
 @Service
 public class ContactService {
 
@@ -32,8 +34,11 @@ public class ContactService {
         this.fileUploadService = fileUploadService;
     }
 
-    public Page<Contact> findAll(Pageable pageable) {
-        Page<Contact> contacts = contactRepository.findAll(pageable);
+    public Page<Contact> list(Pageable pageable, String search) {
+        Page<Contact> contacts = contactRepository.findAll(
+               removeAccents(search),
+               pageable
+        );
 
         return contacts;
     }

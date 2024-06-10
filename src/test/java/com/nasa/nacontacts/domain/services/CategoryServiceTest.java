@@ -40,12 +40,12 @@ public class CategoryServiceTest {
 
         Page<Category> categories = new PageImpl<>(List.of(facebook, twitter));
 
-        when(categoryRepository.findAll(any(Pageable.class))).thenReturn(categories);
+        when(categoryRepository.findAll(any(String.class), any(Pageable.class))).thenReturn(categories);
 
-        Page<Category> categoriesReturn = categoryService.list(Pageable.unpaged());
+        Page<Category> categoriesReturn = categoryService.list(Pageable.unpaged(), "");
 
         assertEquals(categories, categoriesReturn);
-        verify(categoryRepository).findAll(any(Pageable.class));
+        verify(categoryRepository).findAll(any(String.class), any(Pageable.class));
         verifyNoMoreInteractions(categoryRepository);
     }
 
@@ -59,18 +59,18 @@ public class CategoryServiceTest {
 
         Page<Category> categories = new PageImpl<>(List.of(facebook, twitter));
 
-        when(categoryRepository.findAll(any(Pageable.class))).thenReturn(categories);
+        when(categoryRepository.findAll(any(String.class), any(Pageable.class))).thenReturn(categories);
 
         List<Category> expectedCategories = List.of(facebook, twitter);
 
-        Page<Category> categoriesReturn = categoryService.list(pageable);
+        Page<Category> categoriesReturn = categoryService.list(pageable,"");
 
         assertEquals(expectedCategories, categoriesReturn.toList());
         assertEquals(categories.getSort(), categoriesReturn.getSort());
         assertEquals(categories.getSize(), categoriesReturn.getSize());
         assertEquals(categories.getTotalPages(), categoriesReturn.getTotalPages());
 
-        verify(categoryRepository).findAll(pageable);
+        verify(categoryRepository).findAll(any(String.class), eq(pageable));
         verifyNoMoreInteractions(categoryRepository);
     }
 
@@ -83,20 +83,41 @@ public class CategoryServiceTest {
         Pageable pageable = PageRequest.of(0, 10, sort);
         Page<Category> categories = new PageImpl<>(List.of(twitter, facebook));
 
-        when(categoryRepository.findAll(any(Pageable.class))).thenReturn(categories);
+        when(categoryRepository.findAll(any(String.class), any(Pageable.class))).thenReturn(categories);
 
         List<Category> expectedCategories = List.of(twitter, facebook);
 
-        Page<Category> categoriesReturn = categoryService.list(pageable);
+        Page<Category> categoriesReturn = categoryService.list(pageable, "");
 
         assertEquals(expectedCategories, categoriesReturn.toList());
         assertEquals(categories.getSort(), categoriesReturn.getSort());
         assertEquals(categories.getSize(), categoriesReturn.getSize());
         assertEquals(categories.getTotalPages(), categoriesReturn.getTotalPages());
 
-        verify(categoryRepository).findAll(pageable);
+        verify(categoryRepository).findAll(any(String.class), eq(pageable));
         verifyNoMoreInteractions(categoryRepository);
     }
+
+    @Test
+    void shouldShowFilteredListCategories() {
+        Category category = new Category(UUID.randomUUID(), "category 1");
+
+        Page<Category> categories = new PageImpl<>(List.of(category));
+
+        when(categoryRepository.findAll(any(String.class), any(Pageable.class))).thenReturn(categories);
+
+        List<Category> expectedCategories = List.of(category);
+
+        Page<Category> categoriesReturn = categoryService.list(Pageable.unpaged(), "category 1");
+
+        assertEquals(expectedCategories, categoriesReturn.toList());
+        assertEquals(categories.getSize(), categoriesReturn.getSize());
+
+        verify(categoryRepository).findAll(any(String.class), any(Pageable.class));
+        verifyNoMoreInteractions(categoryRepository);
+    }
+
+
 
     @Test
     void shouldFindByIdCategory() {

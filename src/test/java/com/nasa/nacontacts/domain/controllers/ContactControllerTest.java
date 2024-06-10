@@ -130,30 +130,26 @@ public class ContactControllerTest {
 
     @Test
     void shouldShowListContacts() throws Exception {
-        Sort sort = Sort.by(Sort.Direction.ASC, "name");
-        Pageable pageable = PageRequest.of(0, 10, sort);
-        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact), pageable, 1);
+        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact));
 
-        when(contactService.findAll(pageable)).thenReturn(mockedContacts);
+        when(contactService.list(any(Pageable.class), eq(null))).thenReturn(mockedContacts);
 
         String expectedContacts = objectMapper.writeValueAsString(ListContactDTO.from(mockedContacts));
 
-       mockMvc.perform(get(url)
+        mockMvc.perform(get(url)
                .accept(MediaType.APPLICATION_JSON))
                .andExpect(status().isOk())
                .andExpect(content().json(expectedContacts));
 
-        verify(contactService).findAll(pageable);
+        verify(contactService).list(any(Pageable.class), eq(null));
         verifyNoMoreInteractions(contactService);
     }
 
     @Test
     void shouldShowAscendingListContacts() throws Exception {
-        Sort sort = Sort.by(Sort.Direction.ASC, "name");
-        Pageable pageable = PageRequest.of(0, 10, sort);
-        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact), pageable, 1);
+        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact));
 
-        when(contactService.findAll(pageable)).thenReturn(mockedContacts);
+        when(contactService.list(any(Pageable.class), eq(null))).thenReturn(mockedContacts);
 
         String expectedContacts = objectMapper.writeValueAsString(ListContactDTO.from(mockedContacts));
 
@@ -164,42 +160,60 @@ public class ContactControllerTest {
                 .andExpect(content().json(expectedContacts));
 
 
-        verify(contactService).findAll(pageable);
+        verify(contactService).list(any(Pageable.class), eq(null));
         verifyNoMoreInteractions(contactService);
     }
 
     @Test
     void shouldShowDescendingListContacts() throws Exception {
-        Sort sort = Sort.by(Sort.Direction.DESC, "name");
-        Pageable pageable = PageRequest.of(0, 10, sort);
-        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact), pageable, 1);
+        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact));
 
-        System.out.println(pageable.getSort().descending());
-        when(contactService.findAll(pageable)).thenReturn(mockedContacts);
+        when(contactService.list(any(Pageable.class), eq(null))).thenReturn(mockedContacts);
 
         String expectedContacts = objectMapper.writeValueAsString(ListContactDTO.from(mockedContacts));
 
         mockMvc.perform(get(url)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .param("orderBy", "desc"))
+                .accept(MediaType.APPLICATION_JSON)
+                .param("orderBy", "desc"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(expectedContacts));
 
 
-        verify(contactService).findAll(pageable);
+        verify(contactService).list(any(Pageable.class), eq(null));
         verifyNoMoreInteractions(contactService);
     }
+
+    @Test
+    void shouldShowFilteredListContacts() throws Exception {
+
+        Page<Contact> mockedContacts = new PageImpl<>(List.of(contact));
+
+        when(contactService.list(any(Pageable.class), any(String.class))).thenReturn(mockedContacts);
+
+        String expectedContacts = objectMapper.writeValueAsString(ListContactDTO.from(mockedContacts));
+
+        mockMvc.perform(get(url)
+                .accept(MediaType.APPLICATION_JSON)
+                .param("search", "contact"))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expectedContacts));
+
+        verify(contactService).list(any(Pageable.class), any(String.class));
+        verifyNoMoreInteractions(contactService);
+    }
+
     @Test
     void shouldReturnEmptyList() throws Exception {
         Page<Contact> mockedContacts = new PageImpl<>(Collections.emptyList());
-        when(contactService.findAll(any(Pageable.class))).thenReturn(mockedContacts);
+
+        when(contactService.list(any(Pageable.class), eq(null))).thenReturn(mockedContacts);
 
         mockMvc.perform(get(url)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalItems").value(0));
 
-        verify(contactService).findAll(any(Pageable.class));
+        verify(contactService).list(any(Pageable.class), eq(null));
         verifyNoMoreInteractions(contactService);
     }
 
