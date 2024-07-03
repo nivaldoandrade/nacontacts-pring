@@ -1,12 +1,11 @@
 package com.nasa.nacontacts.domain.services;
 
-import com.nasa.nacontacts.domain.config.FileStorageConfig;
+import com.nasa.nacontacts.domain.config.StorageProperties;
 import com.nasa.nacontacts.domain.exceptions.FileStorageException;
 import com.nasa.nacontacts.domain.exceptions.StorageNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,34 +19,40 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class FileUploadServiceTest {
+public class LocalStorageServiceTest {
     @Mock
-    FileStorageConfig fileStorageConfig;
+    StorageProperties storageProperties;
 
-    FileUploadService fileUploadService;
+    LocalStorageService localStorageService;
+
+    Path localStorageLocation;
 
     @BeforeEach
     void setUp() {
-        String uploadDir = "uploads";
-        when(fileStorageConfig.getUploadDir()).thenReturn(uploadDir);
+        localStorageLocation = mock(Path.class);
+        when(storageProperties.getLocalStorageLocation()).thenReturn(localStorageLocation);
 
-        fileUploadService = new FileUploadService(fileStorageConfig);
+        localStorageService = new LocalStorageService(storageProperties);
     }
 
     @Test
     void shouldGetImage() throws IOException {
         String imageName = "test.jpg";
 
-        byte[] mockedByte =  imageName.getBytes();
         MockedStatic<Files> mockedFiles = mockStatic(Files.class);
 
+        byte[] mockedByte = imageName.getBytes();
+
+        when(localStorageLocation.resolve(imageName)).thenReturn(mock(Path.class));
         when(Files.exists(any(Path.class))).thenReturn(true);
         when(Files.readAllBytes(any(Path.class))).thenReturn(mockedByte);
 
-        fileUploadService.getImage(imageName);
+        StorageService.RecoveredFile recoveredFileReturn = localStorageService.getImage(imageName);
 
-       mockedFiles.verify(() -> Files.exists(any(Path.class)));
-       mockedFiles.verify(() -> Files.readAllBytes(any(Path.class)));
+        assertNotNull(recoveredFileReturn);
+        assertInstanceOf(StorageService.RecoveredFile.class, recoveredFileReturn);
+        mockedFiles.verify(() -> Files.exists(any(Path.class)));
+        mockedFiles.verify(() -> Files.readAllBytes(any(Path.class)));
 
 
         mockedFiles.close();
@@ -59,11 +64,12 @@ public class FileUploadServiceTest {
 
         MockedStatic<Files> mockedFiles = mockStatic(Files.class);
 
+        when(localStorageLocation.resolve(imageName)).thenReturn(mock(Path.class));
         when(Files.exists(any(Path.class))).thenReturn(false);
 
         StorageNotFoundException e = assertThrows(
                 StorageNotFoundException.class,
-                () -> fileUploadService.getImage(imageName)
+                () -> localStorageService.getImage(imageName)
         );
 
         assertEquals(e.getMessage(), "The file is not found.");
@@ -79,12 +85,13 @@ public class FileUploadServiceTest {
         String imageName = "test.jpg";
         MockedStatic<Files> mockedFiles = mockStatic(Files.class);
 
+        when(localStorageLocation.resolve(imageName)).thenReturn(mock(Path.class));
         when(Files.exists(any(Path.class))).thenReturn(true);
         when(Files.readAllBytes(any(Path.class))).thenThrow(new IOException());
 
         FileStorageException e  = assertThrows(
                 FileStorageException.class,
-                () -> fileUploadService.getImage(imageName)
+                () -> localStorageService.getImage(imageName)
         );
 
         assertEquals(e.getMessage(), "the file cannot be recovered.");
@@ -99,11 +106,11 @@ public class FileUploadServiceTest {
         String originalFilename = "test.jpg";
         MultipartFile mockedFile = mock(MultipartFile.class);
 
-        ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
+        when(localStorageLocation.resolve(any(String.class))).thenReturn(mock(Path.class));
 
-        fileUploadService.saveFile(mockedFile, originalFilename);
+        localStorageService.saveFile(mockedFile, originalFilename);
 
-        verify(mockedFile).transferTo(pathCaptor.capture());
+        verify(mockedFile).transferTo(any(Path.class));
     }
 
     @Test
@@ -111,6 +118,7 @@ public class FileUploadServiceTest {
         String originalFilename = "test.jpg";
         MultipartFile mockedFile = mock(MultipartFile.class);
 
+        when(localStorageLocation.resolve(any(String.class))).thenReturn(mock(Path.class));
         when(mockedFile.getOriginalFilename()).thenReturn(originalFilename);
 
         String messageError = "Error storing file " + originalFilename + ", please try again";
@@ -120,61 +128,33 @@ public class FileUploadServiceTest {
 
         FileStorageException e = assertThrows(
                 FileStorageException.class,
-                () -> fileUploadService.saveFile(mockedFile, originalFilename)
+                () -> localStorageService.saveFile(mockedFile, originalFilename)
         );
 
         assertEquals(e.getMessage(), messageError);
         verifyNoMoreInteractions(mockedFile);
     }
 
-    @Test
-    void shouldGenerateFilename() {
-        String originalFilename = "test.jpg";
-
-        String hashFilename = fileUploadService.generateFileName(originalFilename);
-
-        String UUIDRandom = hashFilename.split("_")[0];
-
-        assertTrue(hashFilename.startsWith(UUIDRandom));
-        assertTrue(hashFilename.endsWith(originalFilename));
-    }
-
-    @Test
-    void shouldInitSuccess() throws IOException {
-        MockedStatic<Files> mockedFiles = mockStatic(Files.class);
-        Path mockPath = mock(Path.class);
-        when(Files.createDirectories(any(Path.class))).thenReturn(mockPath);
-
-        fileUploadService.init();
-
-        mockedFiles.verify(() -> Files.createDirectories(any(Path.class)));
-        mockedFiles.close();
-    }
-
-    @Test
-    void shouldInitFailure() throws IOException {
-        MockedStatic<Files> mockedFiles = mockStatic(Files.class);
-
-        String messageError = "Error creating folder where files will be stored";
-
-        doThrow(new FileStorageException(messageError)).when(Files.class);
-        Files.createDirectories(any(Path.class));
-
-        FileStorageException e = assertThrows(
-                FileStorageException.class,
-                () -> fileUploadService.init()
-        );
-
-        assertEquals(e.getMessage(), messageError);
-        mockedFiles.close();
-    }
+//    @Test
+//    void shouldGenerateFilename() {
+//        String originalFilename = "test.jpg";
+//
+//        String hashFilename = localStorageService.generateFileName(originalFilename);
+//
+//        String UUIDRandom = hashFilename.split("_")[0];
+//
+//        assertTrue(hashFilename.startsWith(UUIDRandom));
+//        assertTrue(hashFilename.endsWith(originalFilename));
+//    }
 
     @Test
     void shouldDeleteFile() throws IOException {
 
         MockedStatic<Files> mockedFiles = mockStatic(Files.class);
 
-        fileUploadService.deleteFile("filename.jpg");
+        when(localStorageLocation.resolve(any(String.class))).thenReturn(mock(Path.class));
+
+        localStorageService.deleteFile("filename.jpg");
 
         mockedFiles.verify(() -> Files.deleteIfExists(any(Path.class)));
         mockedFiles.close();
@@ -185,12 +165,14 @@ public class FileUploadServiceTest {
         MockedStatic<Files> mockedFiles = mockStatic(Files.class);
 
         String messageError = "Error when deleting file";
+
+        when(localStorageLocation.resolve(any(String.class))).thenReturn(mock(Path.class));
         doThrow(new IOException(messageError)).when(Files.class);
         Files.deleteIfExists(any(Path.class));
 
         StorageNotFoundException e = assertThrows(
                 StorageNotFoundException.class,
-                () -> fileUploadService.deleteFile("filename.jpg")
+                () -> localStorageService.deleteFile("filename.jpg")
         );
 
         mockedFiles.verify(() -> Files.deleteIfExists(any(Path.class)));

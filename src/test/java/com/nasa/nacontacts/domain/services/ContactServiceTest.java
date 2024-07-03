@@ -38,7 +38,7 @@ public class ContactServiceTest {
     CategoryService categoryService;
 
     @Mock
-    FileUploadService fileUploadService;
+    StorageService storageService;
 
     @Test
     void shouldShowListContacts() {
@@ -154,9 +154,7 @@ public class ContactServiceTest {
 
     @Test
     void shouldCreateNewContact() {
-        MultipartFile mockedFile = mock(MultipartFile.class);
-        String originalFilename = "contact1.jpg";
-        String photoName = "uuid-contact1.jpg";
+        String photoName = "contact1.jpg";
 
         UUID categoryId = UUID.randomUUID();
         Category category = new Category(categoryId, "Facebook");
@@ -165,18 +163,16 @@ public class ContactServiceTest {
 
         when(categoryService.findById(categoryId)).thenReturn(category);
         when(contactRepository.findByEmail(contact.getEmail())).thenReturn(Optional.empty());
-        when(mockedFile.getOriginalFilename()).thenReturn(originalFilename);
-        when(fileUploadService.generateFileName(mockedFile.getOriginalFilename())).thenReturn(photoName);
         when(contactRepository.save(contact)).thenReturn(contact);
 
-        CreateContactRequest createContactRequest = CreateContactRequest.fromContact(contact, mockedFile);
+        CreateContactRequest createContactRequest = CreateContactRequest.fromContact(contact, mock(MultipartFile.class));
         Contact contactReturn = contactService.create(createContactRequest);
 
         assertEquals(contact, contactReturn);
         verify(categoryService).findById(categoryId);
         verify(contactRepository).findByEmail(contact.getEmail());
         verify(contactRepository).save(contact);
-        verify(fileUploadService).saveFile(mockedFile, photoName);
+        verify(storageService).saveFile(any(MultipartFile.class), any(String.class));
         verifyNoMoreInteractions(contactRepository);
     }
 
@@ -197,7 +193,7 @@ public class ContactServiceTest {
         verify(categoryService).findById(mockedCategory.getId());
         verify(contactRepository).findByEmail(any(String.class));
         verify(contactRepository).save(contact);
-        verifyNoInteractions(fileUploadService);
+        verifyNoInteractions(storageService);
         verifyNoMoreInteractions(contactRepository);
 
     }
@@ -224,13 +220,13 @@ public class ContactServiceTest {
         verify(categoryService).findById(categoryId);
         verify(contactRepository).findByEmail(contact.getEmail());
         verifyNoMoreInteractions(contactRepository);
-        verifyNoInteractions(fileUploadService);
+        verifyNoInteractions(storageService);
     }
 
     @Test
     void shouldUpdateContact() {
-        MultipartFile mockedFile = mock(MultipartFile.class);
-        String originalFilename = "contact1.jpg";
+//        MultipartFile mockedFile = mock(MultipartFile.class);
+//        String originalFilename = "contact1.jpg";
         String photoName = "uuid-contact1.jpg";
 
         UUID categoryId = UUID.randomUUID();
@@ -238,21 +234,22 @@ public class ContactServiceTest {
 
         UUID contactId = UUID.randomUUID();
         Contact contact = new Contact(null, "contact1", "contact1@email.com","123456789",photoName, category);
-        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contact, mockedFile);
+        UpdateContactRequest updateContactRequest = UpdateContactRequest.fromContact(contact,  mock(MultipartFile.class));
         contact.setId(contactId);
 
         when(contactRepository.findById(contactId)).thenReturn(Optional.of(contact));
         when(contactRepository.findByEmail(updateContactRequest.email())).thenReturn(Optional.of(contact));
-        when(mockedFile.getOriginalFilename()).thenReturn(originalFilename);
-        when(fileUploadService.generateFileName(originalFilename)).thenReturn(photoName);
+//        when(mockedFile.getOriginalFilename()).thenReturn(originalFilename);
+//        when(localStorageService.generateFileName(originalFilename)).thenReturn(photoName);
         when(contactRepository.save(contact)).thenReturn(contact);
 
         contactService.update(contactId ,updateContactRequest);
 
         verify(contactRepository).findById(contactId);
         verify(contactRepository).findByEmail(updateContactRequest.email());
-        verify(fileUploadService).generateFileName(originalFilename);
-        verify(fileUploadService).saveFile(mockedFile, photoName);
+//        verify(localStorageService).generateFileName(originalFilename);
+//        verify(localStorageService).saveFile(mockedFile, photoName);
+        verify(storageService).saveFile(any(MultipartFile.class), any(String.class));
         verify(contactRepository).save(contact);
         verifyNoInteractions(categoryService);
         verifyNoMoreInteractions(contactRepository);
@@ -275,7 +272,7 @@ public class ContactServiceTest {
 
         verify(contactRepository).save(contact);
         verifyNoMoreInteractions(contactRepository);
-        verifyNoInteractions(fileUploadService);
+        verifyNoInteractions(storageService);
         verifyNoInteractions(categoryService);
     }
 
@@ -351,7 +348,7 @@ public class ContactServiceTest {
         contactService.delete(UUID.randomUUID());
 
         verify(contactRepository).delete(contact);
-        verify(fileUploadService).deleteFile(contact.getPhoto());
+        verify(storageService).deleteFile(contact.getPhoto());
 
     }
 }

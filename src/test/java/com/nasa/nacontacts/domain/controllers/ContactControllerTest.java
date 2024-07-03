@@ -11,9 +11,8 @@ import com.nasa.nacontacts.domain.dtos.request.UpdateContactRequest;
 import com.nasa.nacontacts.domain.exceptions.EmailAlreadyInUseException;
 import com.nasa.nacontacts.domain.exceptions.EntityNotFoundException;
 import com.nasa.nacontacts.domain.exceptions.GlobalExceptionHandler;
-import com.nasa.nacontacts.domain.exceptions.StorageNotFoundException;
 import com.nasa.nacontacts.domain.services.ContactService;
-import com.nasa.nacontacts.domain.services.FileUploadService;
+import com.nasa.nacontacts.domain.services.StorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +20,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -48,11 +50,9 @@ public class ContactControllerTest {
     ContactService contactService;
 
     @Mock
-    FileUploadService fileUploadService;
+    StorageService storageService;
 
     private MockMvc mockMvc;
-
-    private String json;
 
     private String url;
 
@@ -94,39 +94,64 @@ public class ContactControllerTest {
         byte[] mockedBytes = imageName.getBytes();
         ByteArrayResource mockedByteArrayResource = new ByteArrayResource(mockedBytes);
 
-        when(fileUploadService.getImage(imageName)).thenReturn(mockedByteArrayResource);
+        StorageService.RecoveredFile recoveredFile = StorageService
+                .RecoveredFile.builder()
+                .resource(mockedByteArrayResource)
+                .build();
+
+        when(storageService.getImage(any(String.class))).thenReturn(recoveredFile);
 
         mockMvc.perform(get(url + "/image/" + imageName))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.IMAGE_JPEG_VALUE))
-                .andExpect(content().bytes(mockedBytes));
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.IMAGE_JPEG_VALUE))
+        .andExpect(content().bytes(mockedBytes));
+
+        verify(storageService).getImage(any(String.class));
+        verifyNoMoreInteractions(storageService);
     }
+
     @Test
     void shouldGetPNGImageContact() throws Exception{
         String imageName = "test.png";
         byte[] mockedBytes = imageName.getBytes();
         ByteArrayResource mockedByteArrayResource = new ByteArrayResource(mockedBytes);
 
-        when(fileUploadService.getImage(imageName)).thenReturn(mockedByteArrayResource);
+        StorageService.RecoveredFile recoveredFile = StorageService
+                .RecoveredFile.builder()
+                .resource(mockedByteArrayResource)
+                .build();
+
+        when(storageService.getImage(any(String.class))).thenReturn(recoveredFile);
 
         mockMvc.perform(get(url + "/image/" + imageName))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.IMAGE_PNG_VALUE))
                 .andExpect(content().bytes(mockedBytes));
+
+
+        verify(storageService).getImage(any(String.class));
+        verifyNoMoreInteractions(storageService);
     }
 
     @Test
-    void shouldThrowNotFoundErrorWhenGetImage() throws Exception {
-        String imageName = "test.png";
+    void shouldRedirectWhenUrlIsProvided() throws Exception {
+        String redirectUrl = "http://url-image.com/test.png";
 
-        String notFoundMessage = "The file is not found.";
+        StorageService.RecoveredFile recoveredFile = StorageService
+                .RecoveredFile.builder()
+                .url(redirectUrl)
+                .build();
 
-        when(fileUploadService.getImage(imageName)).thenThrow(new StorageNotFoundException(notFoundMessage));
+        when(storageService.getImage(any(String.class))).thenReturn(recoveredFile);
 
-        mockMvc.perform(get(url + "/image/" + imageName))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value(notFoundMessage));
+        mockMvc.perform(get(url + "/image/" + "test.png"))
+                .andExpect(status().isFound())
+                .andExpect(header().string(HttpHeaders.LOCATION, redirectUrl));
+
+        verify(storageService).getImage(any(String.class));
+        verifyNoMoreInteractions(storageService);
     }
+
 
     @Test
     void shouldShowListContacts() throws Exception {

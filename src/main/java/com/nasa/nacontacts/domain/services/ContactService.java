@@ -22,16 +22,18 @@ import static com.nasa.nacontacts.domain.utils.StringUtils.removeAccents;
 public class ContactService {
 
     private final ContactRepository contactRepository;
+
     private final CategoryService categoryService;
-    private final FileUploadService fileUploadService;
+
+    private final StorageService storageService;
 
     public ContactService(ContactRepository contactRepository,
                           CategoryService categoryService,
-                          FileUploadService fileUploadService
+                          StorageService storageService
     ) {
         this.contactRepository = contactRepository;
         this.categoryService = categoryService;
-        this.fileUploadService = fileUploadService;
+        this.storageService = storageService;
     }
 
     public Page<Contact> list(Pageable pageable, String search) {
@@ -70,7 +72,6 @@ public class ContactService {
 
     @Transactional
     public void update(UUID id, UpdateContactRequest request) {
-
         Contact existingContact = this.findById(id);
 
         validateEmailUniqueness(request.email(), existingContact.getId());
@@ -89,7 +90,7 @@ public class ContactService {
         Contact contact = this.findById(id);
 
         if(contact.getPhoto() != null) {
-            fileUploadService.deleteFile(contact.getPhoto());
+            storageService.deleteFile(contact.getPhoto());
         }
 
         contactRepository.delete(contact);
@@ -113,11 +114,11 @@ public class ContactService {
 
     private String handlePhoto(MultipartFile newFile, String existingPhotoName) {
         if(newFile != null){
-            String newPhotoName = fileUploadService.generateFileName(newFile.getOriginalFilename());
-            fileUploadService.saveFile(newFile, newPhotoName);
+            String newPhotoName = StorageService.generateFileName(newFile.getOriginalFilename());
+            storageService.saveFile(newFile, newPhotoName);
 
             if(existingPhotoName != null) {
-                fileUploadService.deleteFile(existingPhotoName);
+                storageService.deleteFile(existingPhotoName);
             }
 
             return newPhotoName;

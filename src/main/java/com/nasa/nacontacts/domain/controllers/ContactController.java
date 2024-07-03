@@ -6,19 +6,19 @@ import com.nasa.nacontacts.domain.dtos.ListContactDTO;
 import com.nasa.nacontacts.domain.dtos.request.CreateContactRequest;
 import com.nasa.nacontacts.domain.dtos.request.UpdateContactRequest;
 import com.nasa.nacontacts.domain.services.ContactService;
-import com.nasa.nacontacts.domain.services.FileUploadService;
+import com.nasa.nacontacts.domain.services.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -36,15 +36,15 @@ public class ContactController {
 
     private final ContactService contactService;
 
-    private final FileUploadService fileUploadService;
+    private final StorageService storageService;
 
 
     public ContactController(
             ContactService contactService,
-            FileUploadService fileUploadService
+            StorageService storageService
     ) {
         this.contactService = contactService;
-        this.fileUploadService = fileUploadService;
+        this.storageService = storageService;
     }
 
     @Operation(summary = "Retrieve an Image Contact", description = "Get an image contact by name in JPEG and PNG format")
@@ -65,15 +65,23 @@ public class ContactController {
             @ApiResponse(responseCode = "500", content = @Content),
     })
     @GetMapping("/image/{imageName}")
-    public ResponseEntity<Resource> getImage(@PathVariable String imageName) {
+    public ResponseEntity<?> getImage(@PathVariable String imageName) {
 
-        ByteArrayResource resource = fileUploadService.getImage(imageName);
+        StorageService.RecoveredFile recoveredFile = storageService.getImage(imageName);
+
+
+        if(recoveredFile.getUrl() != null) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, recoveredFile.getUrl())
+                    .build();
+        }
+
 
         MediaType contentType = imageName.endsWith(".png") ? MediaType.IMAGE_PNG :  MediaType.IMAGE_JPEG;
 
         return ResponseEntity.ok()
                 .contentType(contentType)
-                .body(resource);
+                .body(recoveredFile.getResource());
     }
 
     @Operation(summary = "Retrieve all Contact", description = "Get a Contacts array")
