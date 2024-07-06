@@ -83,6 +83,7 @@ public class ContactControllerTest {
                "contact@email.com",
                "123456789",
                null,
+               null,
                category
        );
 

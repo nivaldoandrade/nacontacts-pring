@@ -6,6 +6,7 @@ import lombok.*;
 import java.util.UUID;
 
 @Entity
+@EntityListeners(ContactEntityListener.class)
 @Table(name = "contact")
 @Builder
 @Data
@@ -25,6 +26,9 @@ public class Contact {
     private String phone;
 
     private String photo;
+
+    @Transient
+    private String photoUrl;
 
     @ManyToOne(cascade = CascadeType.MERGE)
     @JoinColumn(name = "category_id")
