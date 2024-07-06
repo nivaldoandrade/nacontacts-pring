@@ -156,7 +156,8 @@ public class CategoryControllerTest {
 
         mockMvc.perform(get(url)
                 .accept(MediaType.APPLICATION_JSON)
-                .param("orderBy", "desc"))
+                .param("orderBy", "desc")
+                .param("search", "category"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalItems").value(0));
 
