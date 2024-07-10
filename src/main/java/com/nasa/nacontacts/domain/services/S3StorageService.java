@@ -41,16 +41,16 @@ public class S3StorageService implements StorageService {
 
         try(FileOutputStream fileOutputStream = new FileOutputStream(file)) {
             fileOutputStream.write(multipartFile.getBytes());
+
+            s3Client.putObject(bucketName, fileName, file);
         } catch (IOException e) {
             throw new FileStorageException("Error storing file "
                     + multipartFile.getOriginalFilename()
                     + ", please try again"
             );
+        } finally {
+            file.delete();
         }
-
-        s3Client.putObject(bucketName, fileName, file);
-
-        file.delete();
     }
 
     public void deleteFile(String fileName) {
